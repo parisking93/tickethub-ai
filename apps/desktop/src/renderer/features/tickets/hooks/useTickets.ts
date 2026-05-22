@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { CreateTicketInput, Ticket, TicketStatus } from '@tickethub/shared';
+import type {
+  CreateTicketInput,
+  Ticket,
+  TicketEvent,
+  TicketStatus,
+  UpdateTicketInput,
+} from '@tickethub/shared';
 import { ticketsApi } from '../api/ticketsApi';
 
 interface UseTicketsResult {
@@ -9,6 +15,8 @@ interface UseTicketsResult {
   reload: () => Promise<void>;
   createTicket: (input: CreateTicketInput) => Promise<void>;
   changeStatus: (id: number, status: TicketStatus, reviewNote?: string) => Promise<void>;
+  updateTicket: (id: number, input: UpdateTicketInput) => Promise<void>;
+  getEvents: (id: number) => Promise<TicketEvent[]>;
 }
 
 export function useTickets(): UseTicketsResult {
@@ -17,7 +25,6 @@ export function useTickets(): UseTicketsResult {
   const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
-    setLoading(true);
     setError(null);
     try {
       setTickets(await ticketsApi.list());
@@ -30,6 +37,9 @@ export function useTickets(): UseTicketsResult {
 
   useEffect(() => {
     void reload();
+    // Aggiorna periodicamente la board (il job gira in background ogni minuto).
+    const timer = setInterval(() => void reload(), 15000);
+    return () => clearInterval(timer);
   }, [reload]);
 
   const createTicket = useCallback(
@@ -48,5 +58,24 @@ export function useTickets(): UseTicketsResult {
     [reload],
   );
 
-  return { tickets, loading, error, reload, createTicket, changeStatus };
+  const updateTicket = useCallback(
+    async (id: number, input: UpdateTicketInput) => {
+      await ticketsApi.update(id, input);
+      await reload();
+    },
+    [reload],
+  );
+
+  const getEvents = useCallback((id: number) => ticketsApi.events(id), []);
+
+  return {
+    tickets,
+    loading,
+    error,
+    reload,
+    createTicket,
+    changeStatus,
+    updateTicket,
+    getEvents,
+  };
 }

@@ -135,5 +135,5 @@ def test_finalize_email_send_failure_stays_approved(db, monkeypatch):
     _worker(db, FakeAIClient()).finalize(ticket.id)
 
     updated = svc.get(ticket.id)
-    assert updated.status == TicketStatus.APPROVATO  # non chiuso
+    assert updated.status == TicketStatus.IN_ATTESA  # torna in attesa, niente auto-retry
     assert "Invio fallito" in updated.ai_note

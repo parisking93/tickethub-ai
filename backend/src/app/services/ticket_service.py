@@ -1,27 +1,23 @@
-"""Logica di business dei ticket, inclusa la macchina a stati.
+"""Logica di business dei ticket: stati, modifica, cronologia eventi.
 
-Questo service è il punto unico usato sia dall'API sia (in futuro) dall'AI worker,
-così la regola sulle transizioni di stato non viene duplicata.
+Punto unico usato da API e worker. Le transizioni di stato sono libere (board
+in stile kanban: si può spostare il ticket avanti e indietro); ogni cambiamento
+viene registrato come evento per la cronologia.
 """
 
-from app.core.errors import InvalidStatusTransitionError, TicketNotFoundError
+from app.core.errors import TicketNotFoundError
 from app.models.ticket import Ticket, TicketStatus
+from app.models.ticket_event import TicketEvent, TicketEventType
 from app.repositories.ticket_repository import TicketRepository
-from app.schemas.ticket import TicketCreate
+from app.schemas.ticket import TicketCreate, TicketUpdate
 
-# Transizioni ammesse, derivate dal flusso operativo:
-#   creato -> in_lavorazione               (il job prende in carico)
-#   in_lavorazione -> in_attesa            (l'AI ha preparato qualcosa da approvare)
-#   in_attesa -> approvato | rifiutato     (decisione dell'utente)
-#   approvato -> concluso                  (l'AI invia email / fa commit e chiude)
-#   rifiutato -> in_lavorazione            (il job ripassa il ticket con le note)
-ALLOWED_TRANSITIONS: dict[TicketStatus, set[TicketStatus]] = {
-    TicketStatus.CREATO: {TicketStatus.IN_LAVORAZIONE},
-    TicketStatus.IN_LAVORAZIONE: {TicketStatus.IN_ATTESA, TicketStatus.CONCLUSO},
-    TicketStatus.IN_ATTESA: {TicketStatus.APPROVATO, TicketStatus.RIFIUTATO},
-    TicketStatus.APPROVATO: {TicketStatus.CONCLUSO, TicketStatus.IN_LAVORAZIONE},
-    TicketStatus.RIFIUTATO: {TicketStatus.IN_LAVORAZIONE},
-    TicketStatus.CONCLUSO: set(),
+_STATUS_LABELS: dict[TicketStatus, str] = {
+    TicketStatus.CREATO: "Creato",
+    TicketStatus.IN_LAVORAZIONE: "In lavorazione",
+    TicketStatus.IN_ATTESA: "In attesa",
+    TicketStatus.APPROVATO: "Approvato",
+    TicketStatus.CONCLUSO: "Concluso",
+    TicketStatus.RIFIUTATO: "Rifiutato",
 }
 
 
@@ -41,7 +37,11 @@ class TicketService:
             project_id=data.project_id,
             status=TicketStatus.CREATO,
         )
-        return self._repo.add(ticket)
+        ticket = self._repo.add(ticket)
+        self._repo.add_event(
+            ticket.id, TicketEventType.CREATED, f"Ticket creato (origine: {data.source.value})."
+        )
+        return ticket
 
     def get(self, ticket_id: int) -> Ticket:
         ticket = self._repo.get(ticket_id)
@@ -52,9 +52,28 @@ class TicketService:
     def list(self, status: TicketStatus | None = None) -> list[Ticket]:
         return self._repo.list(status)
 
+    def list_events(self, ticket_id: int) -> list[TicketEvent]:
+        self.get(ticket_id)  # 404 se non esiste
+        return self._repo.list_events(ticket_id)
+
     def exists_external_ref(self, external_ref: str) -> bool:
         """True se esiste già un ticket con quel riferimento esterno (dedup)."""
         return self._repo.exists_by_external_ref(external_ref)
+
+    def update(self, ticket_id: int, data: TicketUpdate) -> Ticket:
+        """Modifica i dettagli del ticket (titolo, descrizione, tipo, progetto)."""
+        ticket = self.get(ticket_id)
+        changed: list[str] = []
+        for field, value in data.model_dump(exclude_unset=True).items():
+            if getattr(ticket, field) != value:
+                setattr(ticket, field, value)
+                changed.append(field)
+        ticket = self._repo.save(ticket)
+        if changed:
+            self._repo.add_event(
+                ticket_id, TicketEventType.EDIT, f"Dettagli modificati: {', '.join(changed)}."
+            )
+        return ticket
 
     def set_ai_fields(
         self,
@@ -64,7 +83,7 @@ class TicketService:
         ai_note: str | None = None,
         branch_name: str | None = None,
     ) -> Ticket:
-        """Aggiorna gli output prodotti dall'AI (senza cambiare stato)."""
+        """Aggiorna gli output prodotti dall'AI (senza cambiare stato) e li registra."""
         ticket = self.get(ticket_id)
         if ai_draft is not None:
             ticket.ai_draft = ai_draft
@@ -72,7 +91,12 @@ class TicketService:
             ticket.ai_note = ai_note
         if branch_name is not None:
             ticket.branch_name = branch_name
-        return self._repo.save(ticket)
+        ticket = self._repo.save(ticket)
+        if ai_note is not None:
+            self._repo.add_event(ticket_id, TicketEventType.AI_NOTE, ai_note)
+        if ai_draft is not None:
+            self._repo.add_event(ticket_id, TicketEventType.AI_DRAFT, ai_draft)
+        return ticket
 
     def change_status(
         self,
@@ -80,12 +104,25 @@ class TicketService:
         target: TicketStatus,
         review_note: str | None = None,
     ) -> Ticket:
+        """Cambia stato (transizioni libere) e registra l'evento."""
         ticket = self.get(ticket_id)
-        if target not in ALLOWED_TRANSITIONS[ticket.status]:
-            raise InvalidStatusTransitionError(ticket.status.value, target.value)
-
+        previous = ticket.status
         ticket.status = target
-        # La nota di revisione ha senso solo quando si rifiuta/rimanda in lavorazione.
-        if review_note is not None:
+        if review_note:
             ticket.review_note = review_note
-        return self._repo.save(ticket)
+        ticket = self._repo.save(ticket)
+
+        if previous != target:
+            self._repo.add_event(
+                ticket_id,
+                TicketEventType.STATUS_CHANGE,
+                f"{_STATUS_LABELS[previous]} → {_STATUS_LABELS[target]}",
+            )
+        if review_note:
+            self._repo.add_event(ticket_id, TicketEventType.USER_NOTE, review_note)
+        return ticket
+
+    # --- Claim del job (delega al repository) ---
+
+    def release_claim(self, ticket_id: int) -> None:
+        self._repo.release(ticket_id)

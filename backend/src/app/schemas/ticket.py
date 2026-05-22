@@ -5,6 +5,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.ticket import TicketSource, TicketStatus, TicketType
+from app.models.ticket_event import TicketEventType
 
 
 class TicketCreate(BaseModel):
@@ -21,6 +22,24 @@ class TicketCreate(BaseModel):
 class TicketStatusUpdate(BaseModel):
     status: TicketStatus
     review_note: str | None = None
+
+
+class TicketUpdate(BaseModel):
+    """Modifica dei dettagli del ticket (stile Odoo)."""
+
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    description: str | None = None
+    type: TicketType | None = None
+    project_id: int | None = None
+
+
+class TicketEventRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    type: TicketEventType
+    message: str
+    created_at: datetime
 
 
 class TicketRead(BaseModel):

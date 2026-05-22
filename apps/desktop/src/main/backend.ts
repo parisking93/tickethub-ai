@@ -86,6 +86,9 @@ export async function startBackend(): Promise<string> {
       DATABASE_URL: `sqlite:///${dbPath}`,
       AI_PROVIDER: process.env.AI_PROVIDER ?? 'ollama',
       AI_MODEL: process.env.AI_MODEL ?? 'gpt-oss:20b',
+      // Job automatico: parte all'avvio e gira a intervalli finché l'app è aperta.
+      WORKER_AUTORUN: 'true',
+      WORKER_INTERVAL_SECONDS: process.env.WORKER_INTERVAL_SECONDS ?? '60',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });

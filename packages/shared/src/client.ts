@@ -14,7 +14,9 @@ import type {
   CreateTicketInput,
   JobRunResult,
   Ticket,
+  TicketEvent,
   TicketStatus,
+  UpdateTicketInput,
   UpdateTicketStatusInput,
 } from './ticket';
 
@@ -45,8 +47,12 @@ export function createApiClient(baseUrl: BaseUrl) {
       list: (status?: TicketStatus): Promise<Ticket[]> =>
         request<Ticket[]>(status ? `/tickets?status=${status}` : '/tickets'),
       get: (id: number): Promise<Ticket> => request<Ticket>(`/tickets/${id}`),
+      events: (id: number): Promise<TicketEvent[]> =>
+        request<TicketEvent[]>(`/tickets/${id}/events`),
       create: (input: CreateTicketInput): Promise<Ticket> =>
         request<Ticket>('/tickets', { method: 'POST', body: body(input) }),
+      update: (id: number, input: UpdateTicketInput): Promise<Ticket> =>
+        request<Ticket>(`/tickets/${id}`, { method: 'PATCH', body: body(input) }),
       updateStatus: (id: number, input: UpdateTicketStatusInput): Promise<Ticket> =>
         request<Ticket>(`/tickets/${id}/status`, { method: 'PATCH', body: body(input) }),
     },

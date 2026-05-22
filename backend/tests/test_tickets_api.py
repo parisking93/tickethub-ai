@@ -58,13 +58,42 @@ def test_valid_status_transition(client):
     assert resp.json()["status"] == "in_lavorazione"
 
 
-def test_invalid_status_transition_rejected(client):
+def test_status_transitions_are_free(client):
+    # La board è kanban: ogni transizione è permessa (anche creato -> concluso).
     ticket_id = client.post(
         "/api/v1/tickets", json={"title": "X", "type": "email"}
     ).json()["id"]
-
-    # creato -> concluso non è ammesso
     resp = client.patch(
         f"/api/v1/tickets/{ticket_id}/status", json={"status": "concluso"}
     )
-    assert resp.status_code == 409
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "concluso"
+
+
+def test_update_ticket_details(client):
+    ticket_id = client.post(
+        "/api/v1/tickets", json={"title": "Vecchio", "type": "fix"}
+    ).json()["id"]
+    resp = client.patch(
+        f"/api/v1/tickets/{ticket_id}",
+        json={"title": "Nuovo titolo", "description": "dettagli"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["title"] == "Nuovo titolo"
+    assert body["description"] == "dettagli"
+
+
+def test_ticket_events_timeline(client):
+    ticket_id = client.post(
+        "/api/v1/tickets", json={"title": "X", "type": "email"}
+    ).json()["id"]
+    client.patch(
+        f"/api/v1/tickets/{ticket_id}/status",
+        json={"status": "in_lavorazione", "review_note": "rilavora con queste note"},
+    )
+    events = client.get(f"/api/v1/tickets/{ticket_id}/events").json()
+    types = [e["type"] for e in events]
+    assert "created" in types
+    assert "status_change" in types
+    assert "user_note" in types

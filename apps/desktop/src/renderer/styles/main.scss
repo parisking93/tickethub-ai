@@ -1,6 +1,7 @@
 @use 'variables' as *;
 @use 'mixins' as *;
 @use 'email';
+@use 'modal';
 
 * {
   box-sizing: border-box;
@@ -40,6 +41,24 @@ body {
     border-bottom: 1px solid $border;
   }
 
+  &__subbar {
+    @include flex-row;
+    justify-content: space-between;
+    padding: 6px 20px;
+    border-bottom: 1px solid $border;
+    background: $surface;
+  }
+
+  &__badge {
+    font-size: 12px;
+    color: $status-concluso;
+  }
+
+  &__error-inline {
+    font-size: 12px;
+    color: $status-rifiutato;
+  }
+
   &__notice {
     padding: 10px 20px;
     background: rgba($primary, 0.15);
@@ -72,6 +91,13 @@ body {
     flex-direction: column;
     background: $surface-2;
     overflow: hidden;
+    transition: outline-color 0.12s ease;
+    outline: 2px solid transparent;
+
+    &--over {
+      outline-color: $primary;
+      background: rgba($primary, 0.08);
+    }
   }
 
   &__column-header {
@@ -112,6 +138,15 @@ body {
   @include card;
   padding: 12px;
   border-left: 3px solid $border;
+  cursor: grab;
+  transition: filter 0.12s ease;
+
+  &:hover {
+    filter: brightness(1.15);
+  }
+  &:active {
+    cursor: grabbing;
+  }
 
   &--email {
     border-left-color: $type-email;

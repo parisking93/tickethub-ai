@@ -59,7 +59,7 @@ class AIWorker:
             return self._result(ticket_id, "process")
 
         # type=email
-        if ticket.status in (TicketStatus.CREATO, TicketStatus.RIFIUTATO):
+        if ticket.status != TicketStatus.IN_LAVORAZIONE:
             self._tickets.change_status(ticket_id, TicketStatus.IN_LAVORAZIONE)
         try:
             draft = self._ai.complete(prompts.EMAIL_SYSTEM, prompts.build_email_prompt(ticket))
@@ -84,14 +84,12 @@ class AIWorker:
 
     def _finalize_email(self, ticket: Ticket) -> WorkerResult:
         if not ticket.ai_draft or not ticket.source_address or ticket.email_account_id is None:
-            self._tickets.set_ai_fields(
-                ticket.id, ai_note="Impossibile inviare: manca bozza, destinatario o account."
-            )
+            self._fail(ticket.id, "Impossibile inviare: manca bozza, destinatario o account.")
             return self._result(ticket.id, "finalize")
 
         account = self._accounts.get(ticket.email_account_id)
         if account is None:
-            self._tickets.set_ai_fields(ticket.id, ai_note="Account email non più disponibile.")
+            self._fail(ticket.id, "Account email non più disponibile.")
             return self._result(ticket.id, "finalize")
 
         try:
@@ -103,12 +101,17 @@ class AIWorker:
                 in_reply_to=ticket.external_ref,
             )
         except EmailSendError as exc:
-            self._tickets.set_ai_fields(ticket.id, ai_note=f"Invio fallito: {exc}")
+            self._fail(ticket.id, f"Invio fallito: {exc}")
             return self._result(ticket.id, "finalize")
 
         self._tickets.set_ai_fields(ticket.id, ai_note=f"Email inviata a {ticket.source_address}.")
         self._tickets.change_status(ticket.id, TicketStatus.CONCLUSO)
         return self._result(ticket.id, "finalize")
+
+    def _fail(self, ticket_id: int, note: str) -> None:
+        """Finalizzazione fallita: nota + ritorno in 'in attesa' (niente auto-retry)."""
+        self._tickets.set_ai_fields(ticket_id, ai_note=note)
+        self._tickets.change_status(ticket_id, TicketStatus.IN_ATTESA)
 
     def _result(self, ticket_id: int, action: str) -> WorkerResult:
         ticket = self._tickets.get(ticket_id)

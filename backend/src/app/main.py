@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1 import email, odoo, projects, tickets, worker
 from app.core.config import get_settings
 from app.db.base import Base
+from app.db.schema import sync_schema
 from app.db.session import SessionLocal, engine
 
 settings = get_settings()
@@ -23,8 +24,9 @@ async def _worker_loop() -> None:
     from app.integrations.ai.factory import build_ai_client
     from app.workers.job_runner import JobRunner
 
+    # Breve attesa iniziale per non competere con l'avvio, poi un primo giro subito.
+    await asyncio.sleep(3)
     while True:
-        await asyncio.sleep(settings.worker_interval_seconds)
         try:
             ai_client = build_ai_client()
             report = await asyncio.to_thread(JobRunner(SessionLocal, ai_client).run_once)
@@ -39,12 +41,15 @@ async def _worker_loop() -> None:
             logger.warning("Job saltato: %s", exc)
         except Exception:  # noqa: BLE001 — il loop non deve mai morire
             logger.exception("Errore inatteso nel job worker")
+        await asyncio.sleep(settings.worker_interval_seconds)
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    # Step 1: creazione schema diretta. In seguito passeremo ad Alembic.
+    # Crea le tabelle mancanti e aggiunge le colonne nuove a quelle esistenti
+    # (mini-migrazione: i DB di versioni precedenti vengono aggiornati senza perdere dati).
     Base.metadata.create_all(bind=engine)
+    sync_schema(engine)
 
     task: asyncio.Task[None] | None = None
     if settings.worker_autorun:

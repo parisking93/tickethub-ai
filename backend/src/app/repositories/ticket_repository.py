@@ -1,9 +1,18 @@
-"""Accesso dati ai ticket. Nessuna logica di business qui: solo query."""
+"""Accesso dati ai ticket e ai loro eventi. Nessuna logica di business: solo query."""
 
-from sqlalchemy import select
+from datetime import datetime, timedelta
+
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.models.ticket import Ticket, TicketStatus
+from app.models.ticket_event import TicketEvent, TicketEventType
+
+# Un claim più vecchio di così è considerato "stale" (worker crashato) e riassegnabile.
+_STALE_CLAIM = timedelta(minutes=10)
+
+# Stati da cui il job può prendere un ticket per lavorarlo.
+_PROCESS_STATES = (TicketStatus.CREATO, TicketStatus.IN_LAVORAZIONE)
 
 
 class TicketRepository:
@@ -34,3 +43,48 @@ class TicketRepository:
         self._db.commit()
         self._db.refresh(ticket)
         return ticket
+
+    # --- Claim del job worker (lock anti-doppio-lavoro) ---
+
+    def claim_for_processing(self, now: datetime) -> list[int]:
+        """Marca come 'in lavorazione dal job' i ticket da elaborare e ne ritorna gli id.
+
+        Candidati: stato creato/in_lavorazione, non già presi (o con claim stale).
+        """
+        return self._claim(now, list(_PROCESS_STATES))
+
+    def claim_for_finalize(self, now: datetime) -> list[int]:
+        """Marca i ticket approvati da finalizzare e ne ritorna gli id."""
+        return self._claim(now, [TicketStatus.APPROVATO])
+
+    def _claim(self, now: datetime, states: list[TicketStatus]) -> list[int]:
+        cutoff = now - _STALE_CLAIM
+        stmt = select(Ticket).where(
+            Ticket.status.in_(states),
+            or_(Ticket.claimed_at.is_(None), Ticket.claimed_at < cutoff),
+        )
+        tickets = list(self._db.scalars(stmt).all())
+        for ticket in tickets:
+            ticket.claimed_at = now
+        self._db.commit()
+        return [t.id for t in tickets]
+
+    def release(self, ticket_id: int) -> None:
+        ticket = self.get(ticket_id)
+        if ticket is not None:
+            ticket.claimed_at = None
+            self._db.commit()
+
+    # --- Eventi (timeline) ---
+
+    def add_event(self, ticket_id: int, type_: TicketEventType, message: str) -> None:
+        self._db.add(TicketEvent(ticket_id=ticket_id, type=type_, message=message))
+        self._db.commit()
+
+    def list_events(self, ticket_id: int) -> list[TicketEvent]:
+        stmt = (
+            select(TicketEvent)
+            .where(TicketEvent.ticket_id == ticket_id)
+            .order_by(TicketEvent.created_at.asc(), TicketEvent.id.asc())
+        )
+        return list(self._db.scalars(stmt).all())

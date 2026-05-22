@@ -1,0 +1,180 @@
+@use 'variables' as *;
+@use 'mixins' as *;
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &__backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+  }
+
+  &__panel {
+    position: relative;
+    width: min(960px, 94vw);
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    background: $surface;
+    border: 1px solid $border;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  &__header {
+    @include flex-row;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid $border;
+
+    h2 {
+      font-size: 16px;
+    }
+  }
+
+  &__status {
+    color: $text-muted;
+    font-weight: 400;
+  }
+
+  &__body {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 18px;
+    padding: 18px;
+    overflow-y: auto;
+  }
+
+  &__main,
+  &__side {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  &__label {
+    color: $text-muted;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  &__moves {
+    @include flex-row(6px);
+    flex-wrap: wrap;
+  }
+
+  &__draft {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+
+    pre {
+      background: $bg;
+      border: 1px solid $border;
+      border-radius: 6px;
+      padding: 10px;
+      max-height: 260px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 12px;
+    }
+  }
+}
+
+// Campi di form riusabili nel modal
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+
+  > span {
+    color: $text-muted;
+    font-size: 12px;
+  }
+
+  input,
+  textarea,
+  select {
+    background: $bg;
+    border: 1px solid $border;
+    border-radius: 6px;
+    color: $text;
+    padding: 8px 10px;
+    font: inherit;
+    resize: vertical;
+  }
+}
+
+.field-row {
+  display: flex;
+  gap: 12px;
+
+  .field {
+    flex: 1;
+  }
+}
+
+// Timeline (cronologia)
+.timeline {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+
+  &__item {
+    background: $surface-2;
+    border-left: 3px solid $border;
+    border-radius: 4px;
+    padding: 6px 10px;
+
+    &--ai_note,
+    &--ai_draft {
+      border-left-color: $status-in_attesa;
+    }
+    &--user_note {
+      border-left-color: $status-in_lavorazione;
+    }
+    &--status_change {
+      border-left-color: $primary;
+    }
+    &--created {
+      border-left-color: $status-concluso;
+    }
+  }
+
+  &__meta {
+    @include flex-row;
+    justify-content: space-between;
+  }
+
+  &__type {
+    font-size: 11px;
+    font-weight: 600;
+    color: $text-muted;
+    text-transform: uppercase;
+  }
+
+  &__time {
+    font-size: 10px;
+    color: $text-muted;
+  }
+
+  &__msg {
+    font-size: 12px;
+    margin-top: 2px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 120px;
+    overflow: auto;
+  }
+}

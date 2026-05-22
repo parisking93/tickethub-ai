@@ -71,6 +71,10 @@ class Ticket(Base):
         ForeignKey("projects.id", ondelete="SET NULL"), nullable=True
     )
 
+    # Lock del job worker: valorizzato mentre l'AI sta lavorando il ticket, così
+    # i giri successivi del job non lo riprendono. Null = libero.
+    claimed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False
     )

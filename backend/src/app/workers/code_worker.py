@@ -37,7 +37,7 @@ class CodeWorker:
 
     def process(self, ticket_id: int) -> None:
         ticket = self._tickets.get(ticket_id)
-        if ticket.status in (TicketStatus.CREATO, TicketStatus.RIFIUTATO):
+        if ticket.status != TicketStatus.IN_LAVORAZIONE:
             self._tickets.change_status(ticket_id, TicketStatus.IN_LAVORAZIONE)
 
         repo, error = self._open_repo(ticket)
@@ -104,20 +104,18 @@ class CodeWorker:
         ticket = self._tickets.get(ticket_id)
         repo, error = self._open_repo(ticket)
         if repo is None:
-            self._tickets.set_ai_fields(ticket_id, ai_note=error)
+            self._fail(ticket_id, error)
             return
 
         branch = ticket.branch_name or branch_name(ticket.type, ticket.id, ticket.title)
         try:
             repo.checkout_or_create(branch, self._project(ticket).default_branch)
             if not repo.has_changes():
-                self._tickets.set_ai_fields(
-                    ticket_id, ai_note="Nessuna modifica da committare sul branch."
-                )
+                self._fail(ticket_id, "Nessuna modifica da committare sul branch.")
                 return
             commit_hash = repo.commit_all(f"{ticket.type.value}: {ticket.title} (#{ticket.id})")
         except GitError as exc:
-            self._tickets.set_ai_fields(ticket_id, ai_note=f"Commit fallito: {exc}")
+            self._fail(ticket_id, f"Commit fallito: {exc}")
             return
 
         self._tickets.set_ai_fields(
@@ -126,6 +124,11 @@ class CodeWorker:
         self._tickets.change_status(ticket_id, TicketStatus.CONCLUSO)
 
     # --- helper ---
+
+    def _fail(self, ticket_id: int, note: str) -> None:
+        """Finalizzazione codice fallita: nota + ritorno in 'in attesa'."""
+        self._tickets.set_ai_fields(ticket_id, ai_note=note)
+        self._tickets.change_status(ticket_id, TicketStatus.IN_ATTESA)
 
     @staticmethod
     def _read_files(

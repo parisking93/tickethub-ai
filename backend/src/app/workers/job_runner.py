@@ -1,11 +1,14 @@
 """Job runner: raccoglie i ticket pendenti e li affida all'AI worker.
 
-- Da lavorare: ticket in `creato` e `rifiutato` → `process()`.
-- Da finalizzare: ticket in `approvato` → `finalize()`.
+Usa un "claim" (lock) sui ticket: quando un giro prende un ticket gli imposta
+`claimed_at`, così i giri successivi NON riprendono i ticket già in lavorazione.
+Il claim viene rilasciato a fine elaborazione (anche in caso di errore); i claim
+"stale" (worker crashato) vengono recuperati dopo un timeout (vedi repository).
 
-L'esecuzione è sequenziale o parallela in base ai flag `WORKER_PARALLEL` /
-`WORKER_CONCURRENCY`. In parallelo ogni ticket usa una propria sessione DB
-(le sessioni SQLAlchemy non sono condivisibili tra thread).
+- Da lavorare: ticket `creato` o `in_lavorazione` non presi (process).
+- Da finalizzare: ticket `approvato` non presi (finalize).
+
+Sequenziale o parallelo secondo `WORKER_PARALLEL` / `WORKER_CONCURRENCY`.
 """
 
 from __future__ import annotations
@@ -16,9 +19,9 @@ from dataclasses import dataclass, field
 
 from sqlalchemy.orm import Session
 
+from app.core.clock import utcnow
 from app.core.config import Settings, get_settings
 from app.integrations.ai.base import AIClient
-from app.models.ticket import TicketStatus
 from app.repositories.email_account_repository import EmailAccountRepository
 from app.repositories.project_repository import ProjectRepository
 from app.repositories.ticket_repository import TicketRepository
@@ -71,16 +74,14 @@ class JobRunner:
         return report
 
     def _collect(self) -> list[_Item]:
+        """Prende (claim) i ticket pendenti in modo atomico e ne ritorna gli id."""
         session = self._session_factory()
         try:
             repo = TicketRepository(session)
-            to_finalize = [(t.id, "finalize") for t in repo.list(TicketStatus.APPROVATO)]
-            to_process = [
-                (t.id, "process")
-                for t in repo.list(TicketStatus.CREATO) + repo.list(TicketStatus.RIFIUTATO)
-            ]
-            # Prima si finalizzano gli approvati, poi si lavorano i nuovi.
-            return to_finalize + to_process
+            now = utcnow()
+            finalize = [(tid, "finalize") for tid in repo.claim_for_finalize(now)]
+            process = [(tid, "process") for tid in repo.claim_for_processing(now)]
+            return finalize + process
         finally:
             session.close()
 
@@ -88,8 +89,9 @@ class JobRunner:
         ticket_id, action = item
         session = self._session_factory()
         try:
+            tickets = TicketService(TicketRepository(session))
             worker = AIWorker(
-                TicketService(TicketRepository(session)),
+                tickets,
                 self._ai,
                 EmailAccountRepository(session),
                 ProjectRepository(session),
@@ -100,4 +102,8 @@ class JobRunner:
         except Exception as exc:  # noqa: BLE001 — un ticket non deve bloccare gli altri
             return f"Ticket {ticket_id} ({action}): {exc}"
         finally:
-            session.close()
+            # Rilascia sempre il claim, così il ticket può essere ripreso se serve.
+            try:
+                TicketRepository(session).release(ticket_id)
+            finally:
+                session.close()

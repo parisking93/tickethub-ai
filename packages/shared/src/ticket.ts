@@ -94,6 +94,32 @@ export interface CreateTicketInput {
   project_id?: number | null;
 }
 
+/** Payload per modificare i dettagli del ticket (stile Odoo). */
+export interface UpdateTicketInput {
+  title?: string;
+  description?: string | null;
+  type?: TicketType;
+  project_id?: number | null;
+}
+
+/** Tipo di evento nella cronologia del ticket. */
+export enum TicketEventType {
+  Created = 'created',
+  StatusChange = 'status_change',
+  UserNote = 'user_note',
+  AiNote = 'ai_note',
+  AiDraft = 'ai_draft',
+  Edit = 'edit',
+}
+
+/** Evento della timeline di un ticket. */
+export interface TicketEvent {
+  id: number;
+  type: TicketEventType;
+  message: string;
+  created_at: string;
+}
+
 /** Payload per aggiornare lo stato (con eventuale nota di revisione). */
 export interface UpdateTicketStatusInput {
   status: TicketStatus;
