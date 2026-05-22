@@ -16,6 +16,24 @@ from app.integrations.email.parser import ParsedEmail, parse_email
 from app.models.email_account import EmailAccount
 
 
+class ImapConnectionError(RuntimeError):
+    """La connessione/login IMAP non è riuscita (credenziali errate, host, ecc.)."""
+
+
+def verify_imap_account(account: EmailAccount, timeout: int = 20) -> None:
+    """Tenta connessione + login + selezione cartella. Solleva se non riesce.
+
+    Usato alla registrazione dell'account per non marcarlo 'autorizzato' a torto.
+    """
+    try:
+        with ImapEmailClient(account, timeout=timeout) as client:
+            client.check_folder()
+    except ImapConnectionError:
+        raise
+    except Exception as exc:  # noqa: BLE001 — normalizziamo qualsiasi errore IMAP/rete
+        raise ImapConnectionError(str(exc)) from exc
+
+
 class ImapEmailClient:
     """Context manager: apre la connessione, autentica, e la chiude all'uscita."""
 
@@ -41,6 +59,14 @@ class ImapEmailClient:
             with contextlib.suppress(imaplib.IMAP4.error, OSError):
                 self._conn.logout()
             self._conn = None
+
+    def check_folder(self) -> None:
+        """Verifica che la cartella sia selezionabile (usato in fase di verifica account)."""
+        if self._conn is None:
+            raise RuntimeError("Client IMAP non connesso (usare come context manager).")
+        typ, _ = self._conn.select(self._account.folder, readonly=True)
+        if typ != "OK":
+            raise ImapConnectionError(f"Cartella '{self._account.folder}' non accessibile.")
 
     def fetch_unseen(self, limit: int = 50) -> list[ParsedEmail]:
         """Scarica fino a `limit` messaggi non letti (i più recenti) senza marcarli letti."""

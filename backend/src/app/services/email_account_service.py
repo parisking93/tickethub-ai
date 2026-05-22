@@ -8,6 +8,7 @@ from datetime import timedelta
 from app.core.clock import utcnow
 from app.core.config import get_settings
 from app.core.errors import DomainError
+from app.integrations.email.client import ImapConnectionError, verify_imap_account
 from app.integrations.email.oauth import microsoft, state
 from app.integrations.email.providers import resolve_imap
 from app.models.email_account import EmailAccount, EmailAuthType, EmailProvider
@@ -30,6 +31,10 @@ class EmailAccountNotFoundError(DomainError):
 
 class OAuthError(DomainError):
     pass
+
+
+class EmailVerificationError(DomainError):
+    """Le credenziali email non sono valide (verifica IMAP fallita)."""
 
 
 class EmailAccountService:
@@ -62,6 +67,18 @@ class EmailAccountService:
                 else None
             ),
         )
+
+        # Account a password: verifichiamo davvero la connessione IMAP prima di salvare,
+        # così credenziali sbagliate vengono rifiutate (niente "autorizzato" fasullo).
+        if account.auth_type == EmailAuthType.PASSWORD:
+            try:
+                verify_imap_account(account)
+            except ImapConnectionError as exc:
+                raise EmailVerificationError(
+                    f"Connessione/login non riuscita: {exc}. "
+                    "Per Gmail/iCloud usa una password dedicata (app password)."
+                ) from exc
+
         return self._repo.add(account)
 
     def get(self, account_id: int) -> EmailAccount:

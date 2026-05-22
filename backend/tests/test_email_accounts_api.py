@@ -1,5 +1,15 @@
 """Test dell'API account email: creazione, preset provider, validazioni, segreti nascosti."""
 
+import pytest
+
+from app.services import email_account_service
+
+
+@pytest.fixture(autouse=True)
+def _no_imap_verify(monkeypatch):
+    # Evita la verifica IMAP reale (chiamata di rete) durante i test.
+    monkeypatch.setattr(email_account_service, "verify_imap_account", lambda account: None)
+
 
 def test_create_gmail_account_uses_preset_and_hides_secret(client):
     resp = client.post(
@@ -20,6 +30,27 @@ def test_create_gmail_account_uses_preset_and_hides_secret(client):
     assert "secret" not in body
     assert body["has_secret"] is True
     assert body["is_authorized"] is True
+
+
+def test_invalid_credentials_rejected(client, monkeypatch):
+    # Se la verifica IMAP fallisce, l'account NON viene creato (niente "autorizzato" fasullo).
+    from app.integrations.email.client import ImapConnectionError
+
+    def _boom(account):
+        raise ImapConnectionError("login fallito")
+
+    monkeypatch.setattr(email_account_service, "verify_imap_account", _boom)
+    resp = client.post(
+        "/api/v1/email/accounts",
+        json={
+            "email": "fake@gmail.com",
+            "provider": "gmail",
+            "auth_type": "password",
+            "secret": "sbagliata",
+        },
+    )
+    assert resp.status_code == 400
+    assert client.get("/api/v1/email/accounts").json() == []
 
 
 def test_password_account_requires_secret(client):
