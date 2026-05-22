@@ -46,7 +46,7 @@ export function TicketModal({
   getEvents,
 }: TicketModalProps): JSX.Element {
   const { projects } = useProjects();
-  const [current, setCurrent] = useState<Ticket | null>(ticket);
+  const current = ticket; // null = creazione (un solo step: si crea già completo)
   const [title, setTitle] = useState(ticket?.title ?? '');
   const [description, setDescription] = useState(ticket?.description ?? '');
   const [type, setType] = useState<TicketType>(ticket?.type ?? TicketType.Email);
@@ -57,6 +57,7 @@ export function TicketModal({
   const [events, setEvents] = useState<TicketEvent[]>([]);
   const [messages, setMessages] = useState<TicketMessage[]>([]);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]); // allegati pre-creazione
   const [busy, setBusy] = useState(false);
   const [status, setStatusMsg] = useState<string | null>(null);
 
@@ -77,14 +78,17 @@ export function TicketModal({
     if (!title.trim()) return;
     setBusy(true);
     try {
+      // 1 step: crea il ticket e carica subito gli allegati, poi chiudi.
       const created = await onCreate({
         title: title.trim(),
         description: description.trim() || null,
         type,
         project_id: isCode(type) && projectId ? Number(projectId) : null,
       });
-      setCurrent(created); // passa in modalità modifica (così puoi aggiungere allegati)
-      setStatusMsg('Ticket creato ✓ — ora puoi aggiungere allegati.');
+      for (const file of pendingFiles) {
+        await ticketsApi.uploadAttachment(created.id, file);
+      }
+      onClose();
     } finally {
       setBusy(false);
     }
@@ -100,6 +104,7 @@ export function TicketModal({
         type,
         project_id: isCode(type) && projectId ? Number(projectId) : null,
       });
+      setEvents(await getEvents(current.id)); // rinfresca la cronologia (mostra l'evento Modifica)
       setStatusMsg('Modifiche salvate ✓');
     } finally {
       setBusy(false);
@@ -243,47 +248,66 @@ export function TicketModal({
               </div>
             )}
 
-            {current && (
-              <div className="modal__attachments">
-                <span className="modal__label">Allegati</span>
-                <ul className="att-list">
-                  {attachments.map((a) => (
-                    <li key={a.id} className="att-list__item">
-                      <a
-                        href={ticketsApi.attachmentUrl(current.id, a.id)}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        📎 {a.filename}
-                      </a>
-                      <span className="att-list__meta">
-                        {(a.size / 1024).toFixed(0)} KB
-                        <button
-                          className="att-list__del"
-                          type="button"
-                          onClick={() => void removeAttachment(a.id)}
+            <div className="modal__attachments">
+              <span className="modal__label">Allegati</span>
+              <ul className="att-list">
+                {current
+                  ? attachments.map((a) => (
+                      <li key={a.id} className="att-list__item">
+                        <a
+                          href={ticketsApi.attachmentUrl(current.id, a.id)}
+                          target="_blank"
+                          rel="noreferrer"
                         >
-                          ✕
-                        </button>
-                      </span>
-                    </li>
-                  ))}
-                  {attachments.length === 0 && <li className="modal__label">Nessun allegato.</li>}
-                </ul>
-                <label className="att-upload">
-                  + Aggiungi allegato
-                  <input
-                    type="file"
-                    hidden
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) onPickFile(file);
-                      e.target.value = '';
-                    }}
-                  />
-                </label>
-              </div>
-            )}
+                          📎 {a.filename}
+                        </a>
+                        <span className="att-list__meta">
+                          {(a.size / 1024).toFixed(0)} KB
+                          <button
+                            className="att-list__del"
+                            type="button"
+                            onClick={() => void removeAttachment(a.id)}
+                          >
+                            ✕
+                          </button>
+                        </span>
+                      </li>
+                    ))
+                  : pendingFiles.map((f, i) => (
+                      <li key={i} className="att-list__item">
+                        <span>📎 {f.name}</span>
+                        <span className="att-list__meta">
+                          {(f.size / 1024).toFixed(0)} KB
+                          <button
+                            className="att-list__del"
+                            type="button"
+                            onClick={() => setPendingFiles(pendingFiles.filter((_, j) => j !== i))}
+                          >
+                            ✕
+                          </button>
+                        </span>
+                      </li>
+                    ))}
+                {(current ? attachments.length === 0 : pendingFiles.length === 0) && (
+                  <li className="modal__label">Nessun allegato.</li>
+                )}
+              </ul>
+              <label className="att-upload">
+                + Aggiungi allegato
+                <input
+                  type="file"
+                  hidden
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      if (current) onPickFile(file);
+                      else setPendingFiles((prev) => [...prev, file]);
+                    }
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+            </div>
 
             {current?.ai_draft && (
               <div className="modal__draft">

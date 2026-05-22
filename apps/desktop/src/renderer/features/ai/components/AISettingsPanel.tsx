@@ -30,10 +30,14 @@ export function AISettingsPanel({ onClose }: AISettingsPanelProps): JSX.Element 
 
   useEffect(() => {
     void (async () => {
+      let prov = 'ollama';
+      let url = '';
       try {
         const s = await aiApi.getSettings();
+        prov = s.provider;
+        url = s.base_url ?? '';
         setProvider(s.provider);
-        setBaseUrl(s.base_url ?? '');
+        setBaseUrl(url);
         setModels({
           model_email: s.model_email,
           model_fix: s.model_fix,
@@ -45,10 +49,16 @@ export function AISettingsPanel({ onClose }: AISettingsPanelProps): JSX.Element 
       } finally {
         setLoading(false);
       }
-      await refreshModels('ollama', '');
+      // Modelli del provider effettivamente configurato.
+      await refreshModels(prov, url);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const onProviderChange = (p: AIProvider): void => {
+    setProvider(p);
+    void refreshModels(p, baseUrl); // picklist dinamica: ricarica per il nuovo provider
+  };
 
   const refreshModels = async (prov: string, url: string): Promise<void> => {
     setStatus('Carico i modelli…');
@@ -101,10 +111,7 @@ export function AISettingsPanel({ onClose }: AISettingsPanelProps): JSX.Element 
           <>
             <label className="field">
               <span>Provider</span>
-              <select
-                value={provider}
-                onChange={(e) => setProvider(e.target.value as AIProvider)}
-              >
+              <select value={provider} onChange={(e) => onProviderChange(e.target.value as AIProvider)}>
                 {PROVIDERS.map((p) => (
                   <option key={p.value} value={p.value}>
                     {p.label}
