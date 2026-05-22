@@ -33,6 +33,33 @@ def build_email_prompt(ticket: Ticket) -> str:
     return "\n".join(parts)
 
 
+CODEGEN_SYSTEM = (
+    "Sei un assistente sviluppatore senior. Applichi modifiche di codice a un repository. "
+    "Rispondi SOLO con i file da scrivere, ognuno in questo formato esatto:\n"
+    "### FILE: percorso/relativo.ext\n"
+    "```\n"
+    "<contenuto COMPLETO del file>\n"
+    "```\n"
+    "Includi l'intero contenuto del file (non frammenti). Non aggiungere spiegazioni "
+    "fuori dai blocchi. Usa percorsi relativi alla radice del repository."
+)
+
+
+def build_codegen_prompt(ticket: Ticket, file_tree: str) -> str:
+    parts = [
+        f"Tipo richiesta: {ticket.type.value}",
+        f"Titolo: {ticket.title}",
+        "Descrizione:",
+        ticket.description or "(nessuna descrizione)",
+    ]
+    if ticket.review_note:
+        parts.append(f"Note di revisione dall'utente da tenere in conto: {ticket.review_note}")
+    parts.append("\nStruttura attuale del repository (file principali):")
+    parts.append(file_tree)
+    parts.append("\nProduci i file da creare o modificare per soddisfare la richiesta.")
+    return "\n".join(parts)
+
+
 def build_code_prompt(ticket: Ticket) -> str:
     parts = [
         f"Tipo richiesta: {ticket.type.value}",

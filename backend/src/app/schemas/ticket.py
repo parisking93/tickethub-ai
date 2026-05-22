@@ -15,6 +15,7 @@ class TicketCreate(BaseModel):
     external_ref: str | None = None
     source_address: str | None = None
     email_account_id: int | None = None
+    project_id: int | None = None
 
 
 class TicketStatusUpdate(BaseModel):
@@ -38,5 +39,6 @@ class TicketRead(BaseModel):
     external_ref: str | None
     source_address: str | None
     email_account_id: int | None
+    project_id: int | None
     created_at: datetime
     updated_at: datetime

@@ -38,6 +38,7 @@ class TicketService:
             external_ref=data.external_ref,
             source_address=data.source_address,
             email_account_id=data.email_account_id,
+            project_id=data.project_id,
             status=TicketStatus.CREATO,
         )
         return self._repo.add(ticket)

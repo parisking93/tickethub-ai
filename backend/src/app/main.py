@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.v1 import email, tickets, worker
+from app.api.v1 import email, projects, tickets, worker
 from app.core.config import get_settings
 from app.db.base import Base
 from app.db.session import SessionLocal, engine
@@ -81,6 +81,7 @@ def create_app() -> FastAPI:
     app.include_router(tickets.router, prefix="/api/v1")
     app.include_router(email.router, prefix="/api/v1")
     app.include_router(worker.router, prefix="/api/v1")
+    app.include_router(projects.router, prefix="/api/v1")
     return app
 
 

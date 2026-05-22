@@ -66,6 +66,11 @@ class Ticket(Base):
         ForeignKey("email_accounts.id", ondelete="SET NULL"), nullable=True
     )
 
+    # --- Progetto git (per ticket type=fix/feature) ---
+    project_id: Mapped[int | None] = mapped_column(
+        ForeignKey("projects.id", ondelete="SET NULL"), nullable=True
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False
     )

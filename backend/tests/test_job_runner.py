@@ -12,11 +12,12 @@ from app.workers.job_runner import JobRunner
 
 
 def _seed_creato(session_factory, count: int) -> None:
+    # Ticket email: lavorabili dal FakeAI senza bisogno di un progetto git.
     session = session_factory()
     try:
         svc = TicketService(TicketRepository(session))
         for i in range(count):
-            svc.create(TicketCreate(title=f"Ticket {i}", type=TicketType.FIX))
+            svc.create(TicketCreate(title=f"Ticket {i}", type=TicketType.EMAIL))
     finally:
         session.close()
 

@@ -7,9 +7,11 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.repositories.email_account_repository import EmailAccountRepository
+from app.repositories.project_repository import ProjectRepository
 from app.repositories.ticket_repository import TicketRepository
 from app.services.email_account_service import EmailAccountService
 from app.services.email_ingest_service import EmailIngestService
+from app.services.project_service import ProjectService
 from app.services.ticket_service import TicketService
 
 
@@ -27,3 +29,7 @@ def get_email_ingest_service(
     db: Session = Depends(get_db),
 ) -> Generator[EmailIngestService, None, None]:
     yield EmailIngestService(EmailAccountRepository(db), TicketService(TicketRepository(db)))
+
+
+def get_project_service(db: Session = Depends(get_db)) -> Generator[ProjectService, None, None]:
+    yield ProjectService(ProjectRepository(db))

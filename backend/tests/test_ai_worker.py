@@ -8,6 +8,7 @@ from app.integrations.email.sender import EmailSendError
 from app.models.email_account import EmailAccount, EmailAuthType, EmailProvider
 from app.models.ticket import TicketStatus, TicketType
 from app.repositories.email_account_repository import EmailAccountRepository
+from app.repositories.project_repository import ProjectRepository
 from app.repositories.ticket_repository import TicketRepository
 from app.schemas.ticket import TicketCreate
 from app.services.ticket_service import TicketService
@@ -20,7 +21,7 @@ def _service(db) -> TicketService:
 
 
 def _worker(db, ai) -> AIWorker:
-    return AIWorker(_service(db), ai, EmailAccountRepository(db))
+    return AIWorker(_service(db), ai, EmailAccountRepository(db), ProjectRepository(db))
 
 
 def _seed_account(db) -> EmailAccount:
@@ -51,16 +52,17 @@ def test_process_email_creates_draft_and_waits(db):
     assert result.action == "process"
 
 
-def test_process_fix_creates_plan(db):
+def test_process_code_without_project_sets_note(db):
+    # I ticket fix/feature sono delegati al CodeWorker; senza progetto associato
+    # il worker segnala l'assenza e lascia il ticket in lavorazione.
     svc = _service(db)
     ticket = svc.create(TicketCreate(title="Bug crash", type=TicketType.FIX))
-    worker = _worker(db, FakeAIClient(response="1. Riprodurre il bug\n2. Patch in foo.py"))
 
-    worker.process(ticket.id)
+    _worker(db, FakeAIClient()).process(ticket.id)
 
     updated = svc.get(ticket.id)
-    assert updated.status == TicketStatus.IN_ATTESA
-    assert "foo.py" in updated.ai_draft
+    assert updated.status == TicketStatus.IN_LAVORAZIONE
+    assert "progetto" in updated.ai_note.lower()
 
 
 def test_process_ai_error_keeps_in_progress(db):
@@ -135,17 +137,3 @@ def test_finalize_email_send_failure_stays_approved(db, monkeypatch):
     updated = svc.get(ticket.id)
     assert updated.status == TicketStatus.APPROVATO  # non chiuso
     assert "Invio fallito" in updated.ai_note
-
-
-def test_finalize_code_defers_to_step4(db):
-    svc = _service(db)
-    ticket = svc.create(TicketCreate(title="Feature X", type=TicketType.FEATURE))
-    svc.change_status(ticket.id, TicketStatus.IN_LAVORAZIONE)
-    svc.change_status(ticket.id, TicketStatus.IN_ATTESA)
-    svc.change_status(ticket.id, TicketStatus.APPROVATO)
-
-    _worker(db, FakeAIClient()).finalize(ticket.id)
-
-    updated = svc.get(ticket.id)
-    assert updated.status == TicketStatus.APPROVATO
-    assert "Step 4" in updated.ai_note

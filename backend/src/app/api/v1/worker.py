@@ -9,6 +9,7 @@ from app.db.session import SessionLocal, get_db
 from app.integrations.ai.base import AIError
 from app.integrations.ai.factory import build_ai_client
 from app.repositories.email_account_repository import EmailAccountRepository
+from app.repositories.project_repository import ProjectRepository
 from app.repositories.ticket_repository import TicketRepository
 from app.schemas.worker import JobRunResponse, WorkerResultItem
 from app.services.ticket_service import TicketService
@@ -46,6 +47,11 @@ def process_ticket(
     except AIError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
-    worker = AIWorker(TicketService(TicketRepository(db)), ai_client, EmailAccountRepository(db))
+    worker = AIWorker(
+        TicketService(TicketRepository(db)),
+        ai_client,
+        EmailAccountRepository(db),
+        ProjectRepository(db),
+    )
     result = worker.process(ticket_id)
     return WorkerResultItem(**asdict(result))

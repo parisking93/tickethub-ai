@@ -70,6 +70,8 @@ export interface Ticket {
   /** Per i ticket email: indirizzo a cui rispondere e account di provenienza. */
   source_address: string | null;
   email_account_id: number | null;
+  /** Per i ticket fix/feature: progetto git su cui lavorare. */
+  project_id: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -89,6 +91,7 @@ export interface CreateTicketInput {
   type: TicketType;
   source?: TicketSource;
   external_ref?: string | null;
+  project_id?: number | null;
 }
 
 /** Payload per aggiornare lo stato (con eventuale nota di revisione). */

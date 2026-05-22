@@ -20,6 +20,7 @@ from app.core.config import Settings, get_settings
 from app.integrations.ai.base import AIClient
 from app.models.ticket import TicketStatus
 from app.repositories.email_account_repository import EmailAccountRepository
+from app.repositories.project_repository import ProjectRepository
 from app.repositories.ticket_repository import TicketRepository
 from app.services.ticket_service import TicketService
 from app.workers.ai_worker import AIWorker, WorkerResult
@@ -91,6 +92,7 @@ class JobRunner:
                 TicketService(TicketRepository(session)),
                 self._ai,
                 EmailAccountRepository(session),
+                ProjectRepository(session),
             )
             if action == "process":
                 return worker.process(ticket_id)

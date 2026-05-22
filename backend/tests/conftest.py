@@ -63,3 +63,24 @@ class FakeAIClient:
 @pytest.fixture()
 def fake_ai() -> FakeAIClient:
     return FakeAIClient()
+
+
+@pytest.fixture()
+def tmp_git_repo(tmp_path):
+    """Inizializza un repo git con un commit iniziale sul branch main."""
+    import subprocess
+
+    repo = tmp_path / "proj"
+    repo.mkdir()
+
+    def git(*args: str) -> None:
+        subprocess.run(["git", *args], cwd=str(repo), capture_output=True, text=True, check=True)
+
+    git("init", "-b", "main")
+    git("config", "user.email", "test@example.com")
+    git("config", "user.name", "Test")
+    (repo / "README.md").write_text("# Proj\n", encoding="utf-8")
+    git("add", "-A")
+    git("commit", "-m", "init")
+    return repo
+
