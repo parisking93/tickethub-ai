@@ -7,7 +7,7 @@ import { emailApi } from '../features/email/api/emailApi';
 import { EmailAccountsPanel } from '../features/email/components/EmailAccountsPanel';
 import { ProjectsPanel } from '../features/projects/components/ProjectsPanel';
 import { OdooPanel } from '../features/odoo/components/OdooPanel';
-import { AISettingsPanel } from '../features/ai/components/AISettingsPanel';
+import { AIProfilesPanel } from '../features/ai/components/AIProfilesPanel';
 
 export function App(): JSX.Element {
   const { tickets, loading, error, reload, createTicket, changeStatus, updateTicket, getEvents } =
@@ -107,7 +107,7 @@ export function App(): JSX.Element {
       {accountsOpen && <EmailAccountsPanel onClose={() => setAccountsOpen(false)} />}
       {projectsOpen && <ProjectsPanel onClose={() => setProjectsOpen(false)} />}
       {odooOpen && <OdooPanel onClose={() => setOdooOpen(false)} onSynced={() => void reload()} />}
-      {aiOpen && <AISettingsPanel onClose={() => setAiOpen(false)} />}
+      {aiOpen && <AIProfilesPanel onClose={() => setAiOpen(false)} />}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-from app.models.ai_settings import AISettings
+from app.models.ai_profile import AIProfile
 from app.models.attachment import Attachment, AttachmentSource
 from app.models.email_account import EmailAccount, EmailAuthType, EmailProvider
 from app.models.odoo_connection import OdooConnection
@@ -8,7 +8,7 @@ from app.models.ticket_event import TicketEvent, TicketEventType
 from app.models.ticket_message import MessageDirection, TicketMessage
 
 __all__ = [
-    "AISettings",
+    "AIProfile",
     "Attachment",
     "AttachmentSource",
     "EmailAccount",

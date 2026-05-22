@@ -8,7 +8,12 @@ import type {
   EmailAccount,
   EmailSyncResult,
 } from './email';
-import type { AISettings, ModelList, UpdateAISettingsInput } from './ai';
+import type {
+  AIProfile,
+  CreateAIProfileInput,
+  ModelList,
+  UpdateAIProfileInput,
+} from './ai';
 import type { CreateOdooConnectionInput, OdooConnection, OdooSyncResult } from './odoo';
 import type { CreateProjectInput, Project } from './project';
 import type {
@@ -127,9 +132,15 @@ export function createApiClient(baseUrl: BaseUrl) {
     },
 
     ai: {
-      getSettings: (): Promise<AISettings> => request<AISettings>('/ai/settings'),
-      updateSettings: (input: UpdateAISettingsInput): Promise<AISettings> =>
-        request<AISettings>('/ai/settings', { method: 'PUT', body: body(input) }),
+      listProfiles: (): Promise<AIProfile[]> => request<AIProfile[]>('/ai/profiles'),
+      createProfile: (input: CreateAIProfileInput): Promise<AIProfile> =>
+        request<AIProfile>('/ai/profiles', { method: 'POST', body: body(input) }),
+      updateProfile: (id: number, input: UpdateAIProfileInput): Promise<AIProfile> =>
+        request<AIProfile>(`/ai/profiles/${id}`, { method: 'PUT', body: body(input) }),
+      activateProfile: (id: number): Promise<AIProfile> =>
+        request<AIProfile>(`/ai/profiles/${id}/activate`, { method: 'POST' }),
+      deleteProfile: (id: number): Promise<void> =>
+        request<void>(`/ai/profiles/${id}`, { method: 'DELETE' }),
       models: (provider?: string, baseUrl?: string): Promise<ModelList> => {
         const params = new URLSearchParams();
         if (provider) params.set('provider', provider);

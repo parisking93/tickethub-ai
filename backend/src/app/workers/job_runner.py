@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 
 from app.core.clock import utcnow
 from app.core.config import Settings, get_settings
-from app.repositories.ai_settings_repository import AISettingsRepository
+from app.repositories.ai_profile_repository import AIProfileRepository
 from app.repositories.email_account_repository import EmailAccountRepository
 from app.repositories.project_repository import ProjectRepository
 from app.repositories.ticket_repository import TicketRepository
@@ -57,8 +57,8 @@ class JobRunner:
 
     @staticmethod
     def _default_resolver(session: Session) -> ResolveClient:
-        ai_settings = AISettingsRepository(session).get_or_create()
-        return build_resolver(ai_settings)
+        profile = AIProfileRepository(session).get_active()
+        return build_resolver(profile)
 
     def run_once(self) -> JobReport:
         items = self._collect()

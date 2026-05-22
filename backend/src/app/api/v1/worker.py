@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.db.session import SessionLocal, get_db
-from app.repositories.ai_settings_repository import AISettingsRepository
+from app.repositories.ai_profile_repository import AIProfileRepository
 from app.repositories.email_account_repository import EmailAccountRepository
 from app.repositories.project_repository import ProjectRepository
 from app.repositories.ticket_repository import TicketRepository
@@ -37,7 +37,7 @@ def process_ticket(
     db: Session = Depends(get_db),
 ) -> WorkerResultItem:
     """Elabora un singolo ticket con l'AI (utile per azione manuale)."""
-    resolver = build_resolver(AISettingsRepository(db).get_or_create())
+    resolver = build_resolver(AIProfileRepository(db).get_active())
     worker = AIWorker(
         TicketService(TicketRepository(db)),
         resolver,

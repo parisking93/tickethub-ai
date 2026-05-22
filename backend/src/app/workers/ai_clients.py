@@ -11,27 +11,27 @@ from collections.abc import Callable
 from app.core.config import get_settings
 from app.integrations.ai.base import AIClient
 from app.integrations.ai.factory import build_client
-from app.models.ai_settings import AISettings
+from app.models.ai_profile import AIProfile
 
 ResolveClient = Callable[[str], AIClient]
 
 
-def build_resolver(ai_settings: AISettings) -> ResolveClient:
+def build_resolver(profile: AIProfile) -> ResolveClient:
     timeout = get_settings().ai_timeout
     models = {
-        "email": ai_settings.model_email,
-        "fix": ai_settings.model_fix,
-        "feature": ai_settings.model_feature,
-        "vision": ai_settings.model_vision,
+        "email": profile.model_email,
+        "fix": profile.model_fix,
+        "feature": profile.model_feature,
+        "vision": profile.model_vision,
     }
 
     def resolve(operation: str) -> AIClient:
-        model = models.get(operation) or ai_settings.model_email
+        model = models.get(operation) or profile.model_email
         return build_client(
-            provider=ai_settings.provider,
+            provider=profile.provider,
             model=model,
-            base_url=ai_settings.base_url,
-            api_key=ai_settings.api_key,
+            base_url=profile.base_url,
+            api_key=profile.api_key,
             timeout=timeout,
         )
 
