@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+
 import httpx
 
 from app.integrations.ai.base import AIError
@@ -17,13 +19,15 @@ class OllamaClient:
         self._base_url = (base_url or DEFAULT_BASE_URL).rstrip("/")
         self._timeout = timeout
 
-    def complete(self, system: str, prompt: str) -> str:
-        payload = {
+    def complete(self, system: str, prompt: str, images: list[bytes] | None = None) -> str:
+        payload: dict[str, object] = {
             "model": self._model,
             "system": system,
             "prompt": prompt,
             "stream": False,
         }
+        if images:
+            payload["images"] = [base64.b64encode(img).decode() for img in images]
         try:
             with httpx.Client(timeout=self._timeout) as client:
                 resp = client.post(f"{self._base_url}/api/generate", json=payload)

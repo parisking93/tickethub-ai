@@ -53,6 +53,8 @@ class Settings(BaseSettings):
     # (ollama: http://localhost:11434, lmstudio: http://localhost:1234/v1)
     ai_base_url: str | None = None
     ai_model: str = "llama3.1"
+    # Modello per gli allegati immagine (vision). Usato solo se ci sono immagini.
+    ai_vision_model: str = "qwen3-vl:30b"
     ai_api_key: str | None = None
     ai_timeout: int = 120
 

@@ -1,16 +1,20 @@
 import { useEffect, useState } from 'react';
 import {
+  MessageDirection,
   STATUS_LABELS,
   STATUS_ORDER,
   TYPE_LABELS,
   TicketEventType,
   TicketStatus,
   TicketType,
+  type Attachment,
   type Ticket,
   type TicketEvent,
+  type TicketMessage,
   type UpdateTicketInput,
 } from '@tickethub/shared';
 import { useProjects } from '../../projects/hooks/useProjects';
+import { ticketsApi } from '../api/ticketsApi';
 
 interface TicketModalProps {
   ticket: Ticket;
@@ -45,11 +49,20 @@ export function TicketModal({
   const [projectId, setProjectId] = useState<string>(ticket.project_id ? String(ticket.project_id) : '');
   const [note, setNote] = useState('');
   const [events, setEvents] = useState<TicketEvent[]>([]);
+  const [messages, setMessages] = useState<TicketMessage[]>([]);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     void getEvents(ticket.id).then(setEvents).catch(() => setEvents([]));
+    void ticketsApi.messages(ticket.id).then(setMessages).catch(() => setMessages([]));
+    void ticketsApi.attachments(ticket.id).then(setAttachments).catch(() => setAttachments([]));
   }, [getEvents, ticket.id]);
+
+  const onUpload = async (file: File): Promise<void> => {
+    await ticketsApi.uploadAttachment(ticket.id, file);
+    setAttachments(await ticketsApi.attachments(ticket.id));
+  };
 
   const dirty =
     title !== ticket.title ||
@@ -138,6 +151,56 @@ export function TicketModal({
             <button className="btn btn--primary" type="button" disabled={!dirty || busy} onClick={() => void save()}>
               {busy ? 'Salvo…' : 'Salva modifiche'}
             </button>
+
+            {messages.length > 0 && (
+              <div className="modal__thread">
+                <span className="modal__label">Conversazione</span>
+                {messages.map((m) => (
+                  <div
+                    key={m.id}
+                    className={`msg msg--${m.direction === MessageDirection.Inbound ? 'in' : 'out'}`}
+                  >
+                    <span className="msg__who">
+                      {m.direction === MessageDirection.Inbound ? m.from_addr || 'Cliente' : 'Noi'}
+                    </span>
+                    <p className="msg__body">{m.body}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="modal__attachments">
+              <span className="modal__label">Allegati</span>
+              <ul className="att-list">
+                {attachments.map((a) => (
+                  <li key={a.id} className="att-list__item">
+                    <a
+                      href={ticketsApi.attachmentUrl(ticket.id, a.id)}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      📎 {a.filename}
+                    </a>
+                    <span className="att-list__meta">
+                      {(a.size / 1024).toFixed(0)} KB · {a.source}
+                    </span>
+                  </li>
+                ))}
+                {attachments.length === 0 && <li className="modal__label">Nessun allegato.</li>}
+              </ul>
+              <label className="att-upload">
+                + Aggiungi allegato
+                <input
+                  type="file"
+                  hidden
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) void onUpload(file);
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+            </div>
 
             {ticket.ai_draft && (
               <div className="modal__draft">

@@ -2,10 +2,17 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from email.header import decode_header, make_header
 from email.message import Message
 from email.utils import parseaddr
+
+
+@dataclass(frozen=True)
+class ParsedAttachment:
+    filename: str
+    content_type: str
+    data: bytes
 
 
 @dataclass(frozen=True)
@@ -15,6 +22,9 @@ class ParsedEmail:
     from_addr: str
     from_name: str
     body: str
+    in_reply_to: str | None = None
+    references: list[str] = field(default_factory=list)
+    attachments: list[ParsedAttachment] = field(default_factory=list)
 
     @property
     def ticket_title(self) -> str:
@@ -24,6 +34,14 @@ class ParsedEmail:
     def ticket_description(self) -> str:
         header = f"Da: {self.from_name or self.from_addr} <{self.from_addr}>"
         return f"{header}\n\n{self.body}".strip()
+
+    @property
+    def thread_refs(self) -> list[str]:
+        """Tutti i Message-ID di riferimento (per il threading)."""
+        refs = list(self.references)
+        if self.in_reply_to:
+            refs.append(self.in_reply_to)
+        return refs
 
 
 def _decode(value: str | None) -> str:
@@ -68,6 +86,36 @@ def _decode_payload(part: Message) -> str:
         return payload.decode("utf-8", errors="replace")
 
 
+def _extract_attachments(msg: Message) -> list[ParsedAttachment]:
+    if not msg.is_multipart():
+        return []
+    attachments: list[ParsedAttachment] = []
+    for part in msg.walk():
+        if part.is_multipart():
+            continue
+        disposition = str(part.get("Content-Disposition") or "")
+        filename = part.get_filename()
+        if "attachment" not in disposition.lower() and not filename:
+            continue
+        data = part.get_payload(decode=True)
+        if not data:
+            continue
+        attachments.append(
+            ParsedAttachment(
+                filename=_decode(filename) or "allegato",
+                content_type=part.get_content_type(),
+                data=data,
+            )
+        )
+    return attachments
+
+
+def _refs(value: str | None) -> list[str]:
+    if not value:
+        return []
+    return [r.strip() for r in value.replace(",", " ").split() if r.strip()]
+
+
 def parse_email(raw: bytes, msg: Message) -> ParsedEmail:
     """Costruisce un ParsedEmail dal messaggio già parsato da `email.message_from_bytes`."""
     from_name, from_addr = parseaddr(msg.get("From", ""))
@@ -78,10 +126,15 @@ def parse_email(raw: bytes, msg: Message) -> ParsedEmail:
 
         message_id = f"<no-id-{sha256(raw).hexdigest()[:24]}@tickethub.local>"
 
+    in_reply_to = (msg.get("In-Reply-To") or "").strip() or None
+
     return ParsedEmail(
         message_id=message_id,
         subject=_decode(msg.get("Subject")),
         from_addr=from_addr,
         from_name=_decode(from_name),
         body=_extract_body(msg),
+        in_reply_to=in_reply_to,
+        references=_refs(msg.get("References")),
+        attachments=_extract_attachments(msg),
     )

@@ -17,19 +17,23 @@ CODE_SYSTEM = (
 )
 
 
-def build_email_prompt(ticket: Ticket) -> str:
+def build_email_prompt(ticket: Ticket, conversation: str, attachments_text: str = "") -> str:
     parts = [
-        "Ecco l'email ricevuta a cui rispondere:",
+        "Ecco la conversazione email completa (dal più vecchio al più recente):",
         "---",
-        ticket.description or ticket.title,
+        conversation or (ticket.description or ticket.title),
         "---",
+        "Considera l'INTERO scambio qui sopra per capire il contesto e cosa è già stato detto.",
     ]
+    if attachments_text:
+        parts.append("\nContenuto degli allegati testuali:")
+        parts.append(attachments_text)
     if ticket.review_note:
         parts.append(
             "L'utente ha chiesto di rivedere la bozza precedente con queste indicazioni: "
             f"{ticket.review_note}"
         )
-    parts.append("Scrivi la bozza di risposta.")
+    parts.append("Scrivi la bozza di risposta all'ultimo messaggio ricevuto.")
     return "\n".join(parts)
 
 

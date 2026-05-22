@@ -54,7 +54,7 @@ class FakeAIClient:
         self._response = response
         self._error = error
 
-    def complete(self, system: str, prompt: str) -> str:
+    def complete(self, system: str, prompt: str, images: list[bytes] | None = None) -> str:
         if self._error is not None:
             raise self._error
         return self._response

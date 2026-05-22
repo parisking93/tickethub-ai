@@ -11,10 +11,12 @@ import type {
 import type { CreateOdooConnectionInput, OdooConnection, OdooSyncResult } from './odoo';
 import type { CreateProjectInput, Project } from './project';
 import type {
+  Attachment,
   CreateTicketInput,
   JobRunResult,
   Ticket,
   TicketEvent,
+  TicketMessage,
   TicketStatus,
   UpdateTicketInput,
   UpdateTicketStatusInput,
@@ -49,6 +51,25 @@ export function createApiClient(baseUrl: BaseUrl) {
       get: (id: number): Promise<Ticket> => request<Ticket>(`/tickets/${id}`),
       events: (id: number): Promise<TicketEvent[]> =>
         request<TicketEvent[]>(`/tickets/${id}/events`),
+      messages: (id: number): Promise<TicketMessage[]> =>
+        request<TicketMessage[]>(`/tickets/${id}/messages`),
+      attachments: (id: number): Promise<Attachment[]> =>
+        request<Attachment[]>(`/tickets/${id}/attachments`),
+      uploadAttachment: async (id: number, file: File): Promise<Attachment> => {
+        const form = new FormData();
+        form.append('file', file);
+        const res = await fetch(`${resolve()}/api/v1/tickets/${id}/attachments`, {
+          method: 'POST',
+          body: form,
+        });
+        if (!res.ok) {
+          const detail = await res.json().catch(() => ({}));
+          throw new Error((detail as { detail?: string }).detail ?? `Errore ${res.status}`);
+        }
+        return (await res.json()) as Attachment;
+      },
+      attachmentUrl: (id: number, attachmentId: number): string =>
+        `${resolve()}/api/v1/tickets/${id}/attachments/${attachmentId}/download`,
       create: (input: CreateTicketInput): Promise<Ticket> =>
         request<Ticket>('/tickets', { method: 'POST', body: body(input) }),
       update: (id: number, input: UpdateTicketInput): Promise<Ticket> =>

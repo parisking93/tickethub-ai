@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.integrations.email.parser import ParsedEmail
+from app.integrations.email.parser import ParsedAttachment, ParsedEmail
 from app.models.email_account import EmailAccount, EmailAuthType, EmailProvider
 from app.models.ticket import TicketSource, TicketStatus, TicketType
 from app.repositories.email_account_repository import EmailAccountRepository
@@ -46,6 +46,63 @@ def seeded_account(db):
 
 def _make_service(db) -> EmailIngestService:
     return EmailIngestService(EmailAccountRepository(db), TicketService(TicketRepository(db)))
+
+
+def test_reply_appends_to_thread(db, seeded_account, monkeypatch):
+    svc = TicketService(TicketRepository(db))
+    accounts = EmailAccountRepository(db)
+
+    # 1° email
+    first = [ParsedEmail("<m1@x>", "Domanda", "cli@x.com", "Cliente", "primo messaggio")]
+    monkeypatch.setattr(
+        email_ingest_service, "ImapEmailClient", lambda a, **k: _FakeImapClient(first)
+    )
+    EmailIngestService(accounts, svc).sync_account(seeded_account.id)
+    assert len(svc.list()) == 1
+    ticket_id = svc.list()[0].id
+
+    # risposta nello stesso thread (In-Reply-To = <m1@x>)
+    reply = [
+        ParsedEmail(
+            "<m2@x>", "Re: Domanda", "cli@x.com", "Cliente", "secondo", in_reply_to="<m1@x>"
+        )
+    ]
+    monkeypatch.setattr(
+        email_ingest_service, "ImapEmailClient", lambda a, **k: _FakeImapClient(reply)
+    )
+    EmailIngestService(accounts, svc).sync_account(seeded_account.id)
+
+    assert len(svc.list()) == 1  # nessun nuovo ticket
+    messages = svc.list_messages(ticket_id)
+    assert len(messages) == 2
+    assert messages[1].body == "secondo"
+
+
+def test_email_attachment_saved(db, seeded_account, monkeypatch):
+    from app.core import storage
+
+    monkeypatch.setattr(
+        storage,
+        "store_file",
+        lambda ticket_id, filename, data: (f"{ticket_id}/{filename}", len(data)),
+    )
+    sample = [
+        ParsedEmail(
+            "<a1@x>", "Con allegato", "c@x.com", "C", "corpo",
+            attachments=[ParsedAttachment("foto.png", "image/png", b"\x89PNG...")],
+        )
+    ]
+    monkeypatch.setattr(
+        email_ingest_service, "ImapEmailClient", lambda a, **k: _FakeImapClient(sample)
+    )
+    svc = TicketService(TicketRepository(db))
+    EmailIngestService(EmailAccountRepository(db), svc).sync_account(seeded_account.id)
+
+    ticket_id = svc.list()[0].id
+    atts = svc.list_attachments(ticket_id)
+    assert len(atts) == 1
+    assert atts[0].filename == "foto.png"
+    assert atts[0].content_type == "image/png"
 
 
 def test_sync_creates_tickets(db, seeded_account, monkeypatch):

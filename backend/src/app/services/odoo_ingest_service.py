@@ -6,6 +6,8 @@ con external_ref = "odoo:<connection_id>:<record_id>" per evitare duplicati.
 
 from __future__ import annotations
 
+import contextlib
+
 from app.core.clock import utcnow
 from app.core.errors import DomainError
 from app.integrations.odoo.client import OdooClient
@@ -49,7 +51,7 @@ class OdooIngestService:
                 if self._tickets.exists_external_ref(external_ref):
                     skipped += 1
                     continue
-                self._tickets.create(
+                ticket = self._tickets.create(
                     TicketCreate(
                         title=rec.name[:255],
                         description=rec.description or None,
@@ -59,6 +61,7 @@ class OdooIngestService:
                         project_id=conn.project_id,
                     )
                 )
+                self._save_attachments(client, conn.ticket_model, rec.id, ticket.id)
                 created += 1
         except Exception as exc:  # noqa: BLE001 — riportiamo senza interrompere
             errors.append(str(exc))
@@ -73,6 +76,15 @@ class OdooIngestService:
             skipped=skipped,
             errors=errors,
         )
+
+    def _save_attachments(self, client, model: str, res_id: int, ticket_id: int) -> None:
+        from app.models.attachment import AttachmentSource
+
+        with contextlib.suppress(Exception):
+            for att in client.fetch_attachments(model, res_id):
+                self._tickets.attach_file(
+                    ticket_id, att.filename, att.content_type, att.data, AttachmentSource.ODOO
+                )
 
     def sync_all(self, limit: int = 50) -> list[OdooSyncResult]:
         return [

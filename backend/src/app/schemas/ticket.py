@@ -4,8 +4,10 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.models.attachment import AttachmentSource
 from app.models.ticket import TicketSource, TicketStatus, TicketType
 from app.models.ticket_event import TicketEventType
+from app.models.ticket_message import MessageDirection
 
 
 class TicketCreate(BaseModel):
@@ -39,6 +41,27 @@ class TicketEventRead(BaseModel):
     id: int
     type: TicketEventType
     message: str
+    created_at: datetime
+
+
+class TicketMessageRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    direction: MessageDirection
+    from_addr: str | None
+    body: str
+    created_at: datetime
+
+
+class AttachmentRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    filename: str
+    content_type: str
+    size: int
+    source: AttachmentSource
     created_at: datetime
 
 

@@ -5,6 +5,7 @@ Odoo espone /xmlrpc/2/common (autenticazione) e /xmlrpc/2/object (chiamate ai mo
 
 from __future__ import annotations
 
+import base64
 import xmlrpc.client
 from dataclasses import dataclass
 
@@ -18,6 +19,13 @@ class OdooRecord:
     id: int
     name: str
     description: str
+
+
+@dataclass(frozen=True)
+class OdooAttachment:
+    filename: str
+    content_type: str
+    data: bytes
 
 
 class OdooClient:
@@ -70,3 +78,37 @@ class OdooClient:
                 )
             )
         return records
+
+    def fetch_attachments(self, model: str, res_id: int) -> list[OdooAttachment]:
+        """Scarica gli allegati (ir.attachment) collegati al record."""
+        uid = self._uid or self.authenticate()
+        try:
+            rows = self._proxy("object").execute_kw(
+                self._db,
+                uid,
+                self._secret,
+                "ir.attachment",
+                "search_read",
+                [[["res_model", "=", model], ["res_id", "=", res_id]]],
+                {"fields": ["name", "mimetype", "datas"]},
+            )
+        except (xmlrpc.client.Fault, OSError) as exc:
+            raise OdooError(f"Lettura allegati fallita: {exc}") from exc
+
+        attachments: list[OdooAttachment] = []
+        for row in rows:
+            datas = row.get("datas")
+            if not datas:
+                continue
+            try:
+                data = base64.b64decode(datas)
+            except (ValueError, TypeError):
+                continue
+            attachments.append(
+                OdooAttachment(
+                    filename=str(row.get("name") or "allegato"),
+                    content_type=str(row.get("mimetype") or "application/octet-stream"),
+                    data=data,
+                )
+            )
+        return attachments

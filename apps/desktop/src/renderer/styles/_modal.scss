@@ -89,6 +89,73 @@
   }
 }
 
+// Thread conversazione
+.modal__thread {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.msg {
+  border-radius: 8px;
+  padding: 8px 10px;
+  max-width: 90%;
+
+  &--in {
+    background: $surface-2;
+    align-self: flex-start;
+    border: 1px solid $border;
+  }
+  &--out {
+    background: rgba($primary, 0.18);
+    align-self: flex-end;
+  }
+
+  &__who {
+    font-size: 11px;
+    color: $text-muted;
+  }
+
+  &__body {
+    font-size: 13px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin-top: 2px;
+  }
+}
+
+// Allegati
+.att-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  &__item {
+    @include flex-row;
+    justify-content: space-between;
+    font-size: 13px;
+
+    a {
+      color: $primary;
+      text-decoration: none;
+    }
+  }
+
+  &__meta {
+    color: $text-muted;
+    font-size: 11px;
+  }
+}
+
+.att-upload {
+  align-self: flex-start;
+  cursor: pointer;
+  color: $primary;
+  font-size: 13px;
+  margin-top: 4px;
+}
+
 // Campi di form riusabili nel modal
 .field {
   display: flex;

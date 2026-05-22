@@ -120,6 +120,36 @@ export interface TicketEvent {
   created_at: string;
 }
 
+export enum MessageDirection {
+  Inbound = 'inbound',
+  Outbound = 'outbound',
+}
+
+/** Messaggio del thread (conversazione email). */
+export interface TicketMessage {
+  id: number;
+  direction: MessageDirection;
+  from_addr: string | null;
+  body: string;
+  created_at: string;
+}
+
+export enum AttachmentSource {
+  Email = 'email',
+  Odoo = 'odoo',
+  Manuale = 'manuale',
+}
+
+/** Allegato di un ticket. */
+export interface Attachment {
+  id: number;
+  filename: string;
+  content_type: string;
+  size: number;
+  source: AttachmentSource;
+  created_at: string;
+}
+
 /** Payload per aggiornare lo stato (con eventuale nota di revisione). */
 export interface UpdateTicketStatusInput {
   status: TicketStatus;

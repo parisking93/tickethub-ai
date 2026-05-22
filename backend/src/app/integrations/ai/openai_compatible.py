@@ -6,6 +6,8 @@ e una API key. Il formato richiesta/risposta è quello di /v1/chat/completions.
 
 from __future__ import annotations
 
+import base64
+
 import httpx
 
 from app.integrations.ai.base import AIError
@@ -28,15 +30,25 @@ class OpenAICompatibleClient:
         self._api_key = api_key
         self._timeout = timeout
 
-    def complete(self, system: str, prompt: str) -> str:
+    def complete(self, system: str, prompt: str, images: list[bytes] | None = None) -> str:
         headers = {"Content-Type": "application/json"}
         if self._api_key:
             headers["Authorization"] = f"Bearer {self._api_key}"
+        if images:
+            content: list[dict[str, object]] = [{"type": "text", "text": prompt}]
+            for img in images:
+                b64 = base64.b64encode(img).decode()
+                content.append(
+                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}}
+                )
+            user_content: object = content
+        else:
+            user_content = prompt
         payload = {
             "model": self._model,
             "messages": [
                 {"role": "system", "content": system},
-                {"role": "user", "content": prompt},
+                {"role": "user", "content": user_content},
             ],
             "stream": False,
         }

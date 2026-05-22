@@ -5,9 +5,12 @@ in stile kanban: si può spostare il ticket avanti e indietro); ogni cambiamento
 viene registrato come evento per la cronologia.
 """
 
+from app.core import storage
 from app.core.errors import TicketNotFoundError
+from app.models.attachment import Attachment, AttachmentSource
 from app.models.ticket import Ticket, TicketStatus
 from app.models.ticket_event import TicketEvent, TicketEventType
+from app.models.ticket_message import MessageDirection, TicketMessage
 from app.repositories.ticket_repository import TicketRepository
 from app.schemas.ticket import TicketCreate, TicketUpdate
 
@@ -121,6 +124,53 @@ class TicketService:
         if review_note:
             self._repo.add_event(ticket_id, TicketEventType.USER_NOTE, review_note)
         return ticket
+
+    # --- Thread di messaggi ---
+
+    def add_inbound_message(
+        self, ticket_id: int, body: str, from_addr: str | None, message_id: str | None
+    ) -> None:
+        self._repo.add_message(
+            ticket_id, MessageDirection.INBOUND, body, from_addr=from_addr, message_id=message_id
+        )
+
+    def add_outbound_message(self, ticket_id: int, body: str, from_addr: str | None = None) -> None:
+        self._repo.add_message(ticket_id, MessageDirection.OUTBOUND, body, from_addr=from_addr)
+
+    def list_messages(self, ticket_id: int) -> list[TicketMessage]:
+        self.get(ticket_id)
+        return self._repo.list_messages(ticket_id)
+
+    def message_exists(self, message_id: str) -> bool:
+        return self._repo.message_exists(message_id)
+
+    def find_thread_ticket_id(self, message_ids: list[str]) -> int | None:
+        return self._repo.find_ticket_id_by_message_ids(message_ids)
+
+    # --- Allegati ---
+
+    def attach_file(
+        self,
+        ticket_id: int,
+        filename: str,
+        content_type: str,
+        data: bytes,
+        source: AttachmentSource,
+    ) -> Attachment:
+        self.get(ticket_id)
+        rel_path, size = storage.store_file(ticket_id, filename, data)
+        attachment = self._repo.add_attachment(
+            ticket_id, filename, content_type, size, rel_path, source
+        )
+        self._repo.add_event(ticket_id, TicketEventType.EDIT, f"Allegato aggiunto: {filename}")
+        return attachment
+
+    def list_attachments(self, ticket_id: int) -> list[Attachment]:
+        self.get(ticket_id)
+        return self._repo.list_attachments(ticket_id)
+
+    def get_attachment(self, attachment_id: int) -> Attachment | None:
+        return self._repo.get_attachment(attachment_id)
 
     # --- Claim del job (delega al repository) ---
 

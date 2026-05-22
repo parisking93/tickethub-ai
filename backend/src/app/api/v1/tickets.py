@@ -1,13 +1,18 @@
 """Router REST dei ticket (v1)."""
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi.responses import FileResponse
 
 from app.api.deps import get_ticket_service
+from app.core import storage
 from app.core.errors import TicketNotFoundError
+from app.models.attachment import AttachmentSource
 from app.models.ticket import TicketStatus
 from app.schemas.ticket import (
+    AttachmentRead,
     TicketCreate,
     TicketEventRead,
+    TicketMessageRead,
     TicketRead,
     TicketStatusUpdate,
     TicketUpdate,
@@ -65,6 +70,68 @@ def update_ticket(
         return service.update(ticket_id, payload)
     except TicketNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.get("/{ticket_id}/messages", response_model=list[TicketMessageRead])
+def get_ticket_messages(
+    ticket_id: int,
+    service: TicketService = Depends(get_ticket_service),
+) -> list[TicketMessageRead]:
+    try:
+        return service.list_messages(ticket_id)
+    except TicketNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.get("/{ticket_id}/attachments", response_model=list[AttachmentRead])
+def get_ticket_attachments(
+    ticket_id: int,
+    service: TicketService = Depends(get_ticket_service),
+) -> list[AttachmentRead]:
+    try:
+        return service.list_attachments(ticket_id)
+    except TicketNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.post(
+    "/{ticket_id}/attachments",
+    response_model=AttachmentRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def upload_attachment(
+    ticket_id: int,
+    file: UploadFile = File(...),
+    service: TicketService = Depends(get_ticket_service),
+) -> AttachmentRead:
+    try:
+        data = file.file.read()
+        return service.attach_file(
+            ticket_id,
+            file.filename or "allegato",
+            file.content_type or "application/octet-stream",
+            data,
+            AttachmentSource.MANUALE,
+        )
+    except TicketNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.get("/{ticket_id}/attachments/{attachment_id}/download")
+def download_attachment(
+    ticket_id: int,
+    attachment_id: int,
+    service: TicketService = Depends(get_ticket_service),
+) -> FileResponse:
+    attachment = service.get_attachment(attachment_id)
+    if attachment is None or attachment.ticket_id != ticket_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Allegato non trovato")
+    path = storage.resolve_path(attachment.storage_path)
+    if not path.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File non trovato")
+    return FileResponse(
+        path=str(path), filename=attachment.filename, media_type=attachment.content_type
+    )
 
 
 @router.patch("/{ticket_id}/status", response_model=TicketRead)

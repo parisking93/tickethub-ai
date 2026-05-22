@@ -5,8 +5,10 @@ from datetime import datetime, timedelta
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
+from app.models.attachment import Attachment, AttachmentSource
 from app.models.ticket import Ticket, TicketStatus
 from app.models.ticket_event import TicketEvent, TicketEventType
+from app.models.ticket_message import MessageDirection, TicketMessage
 
 # Un claim più vecchio di così è considerato "stale" (worker crashato) e riassegnabile.
 _STALE_CLAIM = timedelta(minutes=10)
@@ -88,3 +90,82 @@ class TicketRepository:
             .order_by(TicketEvent.created_at.asc(), TicketEvent.id.asc())
         )
         return list(self._db.scalars(stmt).all())
+
+    # --- Messaggi del thread ---
+
+    def add_message(
+        self,
+        ticket_id: int,
+        direction: MessageDirection,
+        body: str,
+        from_addr: str | None = None,
+        message_id: str | None = None,
+    ) -> None:
+        self._db.add(
+            TicketMessage(
+                ticket_id=ticket_id,
+                direction=direction,
+                body=body,
+                from_addr=from_addr,
+                message_id=message_id,
+            )
+        )
+        self._db.commit()
+
+    def list_messages(self, ticket_id: int) -> list[TicketMessage]:
+        stmt = (
+            select(TicketMessage)
+            .where(TicketMessage.ticket_id == ticket_id)
+            .order_by(TicketMessage.created_at.asc(), TicketMessage.id.asc())
+        )
+        return list(self._db.scalars(stmt).all())
+
+    def message_exists(self, message_id: str) -> bool:
+        stmt = select(TicketMessage.id).where(TicketMessage.message_id == message_id).limit(1)
+        return self._db.scalars(stmt).first() is not None
+
+    def find_ticket_id_by_message_ids(self, message_ids: list[str]) -> int | None:
+        """Trova il ticket il cui thread contiene uno dei Message-ID indicati."""
+        if not message_ids:
+            return None
+        stmt = (
+            select(TicketMessage.ticket_id)
+            .where(TicketMessage.message_id.in_(message_ids))
+            .limit(1)
+        )
+        return self._db.scalars(stmt).first()
+
+    # --- Allegati ---
+
+    def add_attachment(
+        self,
+        ticket_id: int,
+        filename: str,
+        content_type: str,
+        size: int,
+        storage_path: str,
+        source: AttachmentSource,
+    ) -> Attachment:
+        attachment = Attachment(
+            ticket_id=ticket_id,
+            filename=filename,
+            content_type=content_type,
+            size=size,
+            storage_path=storage_path,
+            source=source,
+        )
+        self._db.add(attachment)
+        self._db.commit()
+        self._db.refresh(attachment)
+        return attachment
+
+    def list_attachments(self, ticket_id: int) -> list[Attachment]:
+        stmt = (
+            select(Attachment)
+            .where(Attachment.ticket_id == ticket_id)
+            .order_by(Attachment.created_at.asc())
+        )
+        return list(self._db.scalars(stmt).all())
+
+    def get_attachment(self, attachment_id: int) -> Attachment | None:
+        return self._db.get(Attachment, attachment_id)
