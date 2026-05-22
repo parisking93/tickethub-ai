@@ -178,6 +178,29 @@ body {
     background: rgba($status-in_attesa, 0.15);
   }
 
+  &__draft {
+    margin-bottom: 6px;
+    font-size: 12px;
+
+    summary {
+      cursor: pointer;
+      color: $text-muted;
+    }
+  }
+
+  &__draft-body {
+    margin-top: 6px;
+    padding: 8px;
+    background: $bg;
+    border: 1px solid $border;
+    border-radius: 4px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 220px;
+    overflow-y: auto;
+    font-family: inherit;
+  }
+
   &__review-note {
     background: rgba($status-rifiutato, 0.12);
   }

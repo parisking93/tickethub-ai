@@ -3,12 +3,14 @@ import { useTickets } from '../features/tickets/hooks/useTickets';
 import { TicketBoard } from '../features/tickets/components/TicketBoard';
 import { CreateTicketForm } from '../features/tickets/components/CreateTicketForm';
 import { emailApi } from '../features/email/api/emailApi';
+import { workerApi } from '../features/tickets/api/workerApi';
 import { EmailAccountsPanel } from '../features/email/components/EmailAccountsPanel';
 
 export function App(): JSX.Element {
   const { tickets, loading, error, reload, createTicket, changeStatus } = useTickets();
   const [accountsOpen, setAccountsOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [working, setWorking] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
   const syncEmail = async (): Promise<void> => {
@@ -31,11 +33,30 @@ export function App(): JSX.Element {
     }
   };
 
+  const runJob = async (): Promise<void> => {
+    setWorking(true);
+    setNotice(null);
+    try {
+      const report = await workerApi.run();
+      const msg = `Job: ${report.processed} lavorati, ${report.finalized} finalizzati.`;
+      const errs = [...report.errors, ...report.results.filter((r) => r.note.startsWith('Errore')).map((r) => `#${r.ticket_id}: ${r.note}`)];
+      setNotice(errs.length > 0 ? `${msg} Problemi: ${errs.join('; ')}` : msg);
+      await reload();
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : 'Errore esecuzione job');
+    } finally {
+      setWorking(false);
+    }
+  };
+
   return (
     <div className="app">
       <header className="app__header">
         <h1 className="app__title">Ticket AI Manager</h1>
         <CreateTicketForm onCreate={createTicket} />
+        <button className="btn btn--primary" type="button" onClick={() => void runJob()} disabled={working}>
+          {working ? 'Elaboro…' : '▶ Avvia job AI'}
+        </button>
         <button className="btn" type="button" onClick={() => void syncEmail()} disabled={syncing}>
           {syncing ? 'Scarico…' : '📥 Scarica email'}
         </button>

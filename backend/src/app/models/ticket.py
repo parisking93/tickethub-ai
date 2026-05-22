@@ -7,7 +7,7 @@ Gli enum devono restare allineati con i contratti TS condivisi
 import enum
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, Integer, String, Text, func
+from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -51,12 +51,20 @@ class Ticket(Base):
 
     # Nota prodotta dall'AI (es. "va approvata l'email"); compilata allo Step 3.
     ai_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Output dell'AI da rivedere/approvare: bozza email o piano di modifica codice.
+    ai_draft: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Nota dell'utente in caso di rifiuto/revisione.
     review_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Branch git per ticket di tipo fix/feature (Step 4).
     branch_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     # Riferimento esterno (id email/thread o id ticket Odoo) (Step 2/5).
     external_ref: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    # --- Provenienza email (per ticket type=email): a chi rispondere e da quale account ---
+    source_address: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    email_account_id: Mapped[int | None] = mapped_column(
+        ForeignKey("email_accounts.id", ondelete="SET NULL"), nullable=True
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False

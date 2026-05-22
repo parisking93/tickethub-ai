@@ -36,6 +36,8 @@ class TicketService:
             type=data.type,
             source=data.source,
             external_ref=data.external_ref,
+            source_address=data.source_address,
+            email_account_id=data.email_account_id,
             status=TicketStatus.CREATO,
         )
         return self._repo.add(ticket)
@@ -52,6 +54,24 @@ class TicketService:
     def exists_external_ref(self, external_ref: str) -> bool:
         """True se esiste già un ticket con quel riferimento esterno (dedup)."""
         return self._repo.exists_by_external_ref(external_ref)
+
+    def set_ai_fields(
+        self,
+        ticket_id: int,
+        *,
+        ai_draft: str | None = None,
+        ai_note: str | None = None,
+        branch_name: str | None = None,
+    ) -> Ticket:
+        """Aggiorna gli output prodotti dall'AI (senza cambiare stato)."""
+        ticket = self.get(ticket_id)
+        if ai_draft is not None:
+            ticket.ai_draft = ai_draft
+        if ai_note is not None:
+            ticket.ai_note = ai_note
+        if branch_name is not None:
+            ticket.branch_name = branch_name
+        return self._repo.save(ticket)
 
     def change_status(
         self,

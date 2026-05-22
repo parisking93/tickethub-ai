@@ -1,15 +1,25 @@
 # workers/ — Job runner & AI worker (Step 3)
 
-Qui vivrà:
+- **`job_runner.py`** — `JobRunner.run_once()` raccoglie i ticket pendenti e li affida
+  all'AI worker. Da lavorare: stati `creato` e `rifiutato`. Da finalizzare: `approvato`.
+  Sequenziale o parallelo secondo `WORKER_PARALLEL` / `WORKER_CONCURRENCY` (in parallelo
+  ogni ticket usa una sessione DB propria).
+- **`ai_worker.py`** — `AIWorker`:
+  - `process()`: l'AI prepara una **bozza email** (`type=email`) o un **piano di intervento**
+    (`fix`/`feature`); salva l'output in `ticket.ai_draft` e porta il ticket a `in_attesa`.
+  - `finalize()`: su `approvato`, per le email **invia** la bozza (SMTP) e chiude (`concluso`);
+    per `fix`/`feature` il commit su branch arriva allo **Step 4**.
+- **`prompts.py`** — prompt di sistema e builder dei prompt (in italiano).
 
-- **`job_runner.py`** — scheduler che periodicamente raccoglie i ticket in stato
-  `creato` (e `rifiutato`) e li passa all'AI worker. Il flag `WORKER_PARALLEL`
-  (vedi `app.core.config.Settings`) decide tra lavorazione sequenziale o parallela
-  con concorrenza `WORKER_CONCURRENCY`.
-- **`ai_worker.py`** — riceve un ticket, sceglie la strategia in base al `type`
-  (`email` → prepara bozza e mette `in_attesa`; `fix`/`feature` → lavora il codice
-  su un branch git e mette `in_attesa`). Su `approvato` esegue l'azione finale
-  (invio email o commit) e chiude il ticket (`concluso`).
+Le transizioni di stato passano sempre da `TicketService` (macchina a stati unica).
 
-L'AI worker userà `TicketService` per le transizioni di stato, così la macchina a
-stati resta centralizzata.
+## Provider AI
+
+Configurati via `AI_PROVIDER` (vedi `app.core.config` e `integrations/ai/`):
+`ollama` (locale), `lmstudio` (locale, OpenAI-compatible), `openai_compatible` (remoto).
+
+## Esecuzione
+
+- Manuale: `POST /api/v1/worker/run` — un giro completo.
+- Singolo ticket: `POST /api/v1/worker/tickets/{id}/process`.
+- Automatica: `WORKER_AUTORUN=true` + `WORKER_INTERVAL_SECONDS` (scheduler nel lifespan).

@@ -1,0 +1,114 @@
+"""AI worker: lavora un singolo ticket in base al tipo e allo stato.
+
+- process():  ticket in `creato`/`rifiutato` → l'AI prepara una bozza (email) o un
+  piano (fix/feature); il ticket passa a `in_attesa` con una nota.
+- finalize(): ticket `approvato` → per le email invia la bozza e chiude (`concluso`);
+  per fix/feature il commit su branch arriva allo Step 4 (per ora resta `approvato`).
+
+Le transizioni di stato passano sempre da TicketService (macchina a stati unica).
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+from app.integrations.ai.base import AIClient, AIError
+from app.integrations.email.sender import EmailSendError, send_reply
+from app.models.ticket import Ticket, TicketStatus, TicketType
+from app.repositories.email_account_repository import EmailAccountRepository
+from app.services.ticket_service import TicketService
+from app.workers import prompts
+
+
+@dataclass
+class WorkerResult:
+    ticket_id: int
+    action: str  # "process" | "finalize"
+    status: str
+    note: str
+
+
+class AIWorker:
+    def __init__(
+        self,
+        tickets: TicketService,
+        ai: AIClient,
+        accounts: EmailAccountRepository,
+    ) -> None:
+        self._tickets = tickets
+        self._ai = ai
+        self._accounts = accounts
+
+    # --- Lavorazione (creato/rifiutato -> in_attesa) ---
+
+    def process(self, ticket_id: int) -> WorkerResult:
+        ticket = self._tickets.get(ticket_id)
+        if ticket.status in (TicketStatus.CREATO, TicketStatus.RIFIUTATO):
+            self._tickets.change_status(ticket_id, TicketStatus.IN_LAVORAZIONE)
+
+        try:
+            draft, note = self._generate(ticket)
+        except AIError as exc:
+            # In caso di errore AI, lascia il ticket in lavorazione con la nota d'errore.
+            self._tickets.set_ai_fields(ticket_id, ai_note=f"Errore AI: {exc}")
+            return self._result(ticket_id, "process")
+
+        self._tickets.set_ai_fields(ticket_id, ai_draft=draft, ai_note=note)
+        self._tickets.change_status(ticket_id, TicketStatus.IN_ATTESA)
+        return self._result(ticket_id, "process")
+
+    def _generate(self, ticket: Ticket) -> tuple[str, str]:
+        if ticket.type == TicketType.EMAIL:
+            draft = self._ai.complete(prompts.EMAIL_SYSTEM, prompts.build_email_prompt(ticket))
+            return draft, "Bozza di risposta pronta — rivedi e approva."
+        draft = self._ai.complete(prompts.CODE_SYSTEM, prompts.build_code_prompt(ticket))
+        return draft, "Piano di intervento pronto — rivedi e approva."
+
+    # --- Finalizzazione (approvato -> concluso) ---
+
+    def finalize(self, ticket_id: int) -> WorkerResult:
+        ticket = self._tickets.get(ticket_id)
+        if ticket.type == TicketType.EMAIL:
+            return self._finalize_email(ticket)
+        # fix/feature: il commit su branch è demandato allo Step 4.
+        self._tickets.set_ai_fields(
+            ticket_id, ai_note="Finalizzazione codice (commit su branch) prevista allo Step 4."
+        )
+        return self._result(ticket_id, "finalize")
+
+    def _finalize_email(self, ticket: Ticket) -> WorkerResult:
+        if not ticket.ai_draft or not ticket.source_address or ticket.email_account_id is None:
+            self._tickets.set_ai_fields(
+                ticket.id, ai_note="Impossibile inviare: manca bozza, destinatario o account."
+            )
+            return self._result(ticket.id, "finalize")
+
+        account = self._accounts.get(ticket.email_account_id)
+        if account is None:
+            self._tickets.set_ai_fields(ticket.id, ai_note="Account email non più disponibile.")
+            return self._result(ticket.id, "finalize")
+
+        try:
+            send_reply(
+                account=account,
+                to_addr=ticket.source_address,
+                subject=f"Re: {ticket.title}",
+                body=ticket.ai_draft,
+                in_reply_to=ticket.external_ref,
+            )
+        except EmailSendError as exc:
+            self._tickets.set_ai_fields(ticket.id, ai_note=f"Invio fallito: {exc}")
+            return self._result(ticket.id, "finalize")
+
+        self._tickets.set_ai_fields(ticket.id, ai_note=f"Email inviata a {ticket.source_address}.")
+        self._tickets.change_status(ticket.id, TicketStatus.CONCLUSO)
+        return self._result(ticket.id, "finalize")
+
+    def _result(self, ticket_id: int, action: str) -> WorkerResult:
+        ticket = self._tickets.get(ticket_id)
+        return WorkerResult(
+            ticket_id=ticket_id,
+            action=action,
+            status=ticket.status.value,
+            note=ticket.ai_note or "",
+        )

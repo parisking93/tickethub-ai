@@ -35,6 +35,19 @@ class Settings(BaseSettings):
     # Flag di esecuzione job (Step 3): lavorazione parallela vs sequenziale
     worker_parallel: bool = False
     worker_concurrency: int = 2
+    # Scheduler automatico del job (oltre al trigger manuale POST /worker/run)
+    worker_autorun: bool = False
+    worker_interval_seconds: int = 30
+
+    # --- AI provider (Step 3) ---
+    # ollama | lmstudio | openai_compatible | none
+    ai_provider: str = "ollama"
+    # URL base; se None si usa il default del provider
+    # (ollama: http://localhost:11434, lmstudio: http://localhost:1234/v1)
+    ai_base_url: str | None = None
+    ai_model: str = "llama3.1"
+    ai_api_key: str | None = None
+    ai_timeout: int = 120
 
     # OAuth2 Microsoft (Outlook). Redirect URI da registrare in Azure (Entra).
     ms_oauth_redirect_uri: str = "http://localhost:8000/api/v1/email/oauth/callback"

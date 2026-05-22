@@ -56,6 +56,8 @@ class EmailIngestService:
                         type=TicketType.EMAIL,
                         source=TicketSource.EMAIL,
                         external_ref=parsed.message_id,
+                        source_address=parsed.from_addr or None,
+                        email_account_id=account.id,
                     )
                 )
                 created += 1

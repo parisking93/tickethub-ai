@@ -34,6 +34,12 @@ export function TicketCard({ ticket, onChangeStatus }: TicketCardProps): JSX.Ele
           <strong>AI:</strong> {ticket.ai_note}
         </p>
       )}
+      {ticket.ai_draft && (
+        <details className="ticket-card__draft">
+          <summary>Bozza / piano AI</summary>
+          <pre className="ticket-card__draft-body">{ticket.ai_draft}</pre>
+        </details>
+      )}
       {ticket.review_note && (
         <p className="ticket-card__review-note">
           <strong>Note:</strong> {ticket.review_note}

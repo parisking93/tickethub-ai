@@ -13,6 +13,8 @@ class TicketCreate(BaseModel):
     type: TicketType
     source: TicketSource = TicketSource.MANUALE
     external_ref: str | None = None
+    source_address: str | None = None
+    email_account_id: int | None = None
 
 
 class TicketStatusUpdate(BaseModel):
@@ -30,8 +32,11 @@ class TicketRead(BaseModel):
     status: TicketStatus
     source: TicketSource
     ai_note: str | None
+    ai_draft: str | None
     review_note: str | None
     branch_name: str | None
     external_ref: str | None
+    source_address: str | None
+    email_account_id: int | None
     created_at: datetime
     updated_at: datetime
