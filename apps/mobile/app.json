@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "name": "TicketHub AI",
+    "slug": "tickethub-ai",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "platforms": ["ios", "android"],
+    "splash": {
+      "backgroundColor": "#0f1419"
+    },
+    "ios": { "supportsTablet": true },
+    "android": { "package": "com.tickethubai.mobile" }
+  }
+}

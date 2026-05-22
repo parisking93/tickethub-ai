@@ -25,12 +25,12 @@ con ramo di revisione `rifiutato → in_lavorazione`.
 
 | Step | Contenuto | Stato |
 |------|-----------|-------|
-| 1 | Scaffold + DB ticket + UI base con stati | ✅ in corso |
-| 2 | Integrazione email (IMAP) → crea ticket | ⏳ |
-| 3 | Job worker + AI worker (Ollama) | ⏳ |
-| 4 | Integrazione git (branch `fix/N/titolo`, `feature/N/titolo`) | ⏳ |
-| 5 | Integrazione Odoo | ⏳ |
-| 6 | App mobile + sync desktop | ⏳ |
+| 1 | Scaffold + DB ticket + UI base con stati | ✅ |
+| 2 | Integrazione email (IMAP) → crea ticket | ✅ |
+| 3 | Job worker + AI worker (Ollama/LM Studio/remoto) | ✅ |
+| 4 | Integrazione git (branch `fix/N/titolo`, `feature/N/titolo`) | ✅ |
+| 5 | Integrazione Odoo (XML-RPC) | ✅ |
+| 6 | App mobile (Expo) + sync desktop | ✅ |
 
 ## Sviluppo
 

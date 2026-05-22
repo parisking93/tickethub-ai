@@ -6,11 +6,13 @@ import { emailApi } from '../features/email/api/emailApi';
 import { workerApi } from '../features/tickets/api/workerApi';
 import { EmailAccountsPanel } from '../features/email/components/EmailAccountsPanel';
 import { ProjectsPanel } from '../features/projects/components/ProjectsPanel';
+import { OdooPanel } from '../features/odoo/components/OdooPanel';
 
 export function App(): JSX.Element {
   const { tickets, loading, error, reload, createTicket, changeStatus } = useTickets();
   const [accountsOpen, setAccountsOpen] = useState(false);
   const [projectsOpen, setProjectsOpen] = useState(false);
+  const [odooOpen, setOdooOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [working, setWorking] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -68,6 +70,9 @@ export function App(): JSX.Element {
         <button className="btn" type="button" onClick={() => setProjectsOpen(true)}>
           🗂 Progetti
         </button>
+        <button className="btn" type="button" onClick={() => setOdooOpen(true)}>
+          🔗 Odoo
+        </button>
         <button className="btn" type="button" onClick={() => void reload()}>
           ↻ Aggiorna
         </button>
@@ -90,6 +95,9 @@ export function App(): JSX.Element {
 
       {accountsOpen && <EmailAccountsPanel onClose={() => setAccountsOpen(false)} />}
       {projectsOpen && <ProjectsPanel onClose={() => setProjectsOpen(false)} />}
+      {odooOpen && (
+        <OdooPanel onClose={() => setOdooOpen(false)} onSynced={() => void reload()} />
+      )}
     </div>
   );
 }
