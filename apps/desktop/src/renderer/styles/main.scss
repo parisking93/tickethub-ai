@@ -1,0 +1,266 @@
+@use 'variables' as *;
+@use 'mixins' as *;
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: $bg;
+  color: $text;
+  font-size: 14px;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+
+  &__header {
+    @include flex-row;
+    flex-wrap: wrap;
+    padding: $gap 20px;
+    border-bottom: 1px solid $border;
+    background: $surface;
+  }
+
+  &__title {
+    font-size: 18px;
+    margin-right: auto;
+  }
+
+  &__error {
+    padding: 10px 20px;
+    background: rgba($status-rifiutato, 0.15);
+    color: $status-rifiutato;
+    border-bottom: 1px solid $border;
+  }
+
+  &__main {
+    flex: 1;
+    overflow: auto;
+    padding: 20px;
+  }
+
+  &__loading {
+    color: $text-muted;
+  }
+}
+
+// ---- Board ----
+.board {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(220px, 1fr));
+  gap: $gap;
+  height: 100%;
+
+  &__column {
+    @include card;
+    display: flex;
+    flex-direction: column;
+    background: $surface-2;
+    overflow: hidden;
+  }
+
+  &__column-header {
+    @include flex-row;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-bottom: 1px solid $border;
+    font-weight: 600;
+  }
+
+  &__count {
+    background: $border;
+    border-radius: 999px;
+    padding: 1px 8px;
+    font-size: 12px;
+    color: $text-muted;
+  }
+
+  &__column-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: $gap;
+    display: flex;
+    flex-direction: column;
+    gap: $gap;
+  }
+
+  &__empty {
+    color: $text-muted;
+    font-size: 12px;
+    text-align: center;
+    padding: 12px 0;
+  }
+}
+
+// ---- Ticket card ----
+.ticket-card {
+  @include card;
+  padding: 12px;
+  border-left: 3px solid $border;
+
+  &--email {
+    border-left-color: $type-email;
+  }
+  &--fix {
+    border-left-color: $type-fix;
+  }
+  &--feature {
+    border-left-color: $type-feature;
+  }
+
+  &__header {
+    @include flex-row;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+
+  &__id {
+    color: $text-muted;
+    font-size: 12px;
+  }
+
+  &__type {
+    font-size: 11px;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+
+    &--email {
+      background: rgba($type-email, 0.2);
+      color: $type-email;
+    }
+    &--fix {
+      background: rgba($type-fix, 0.2);
+      color: $type-fix;
+    }
+    &--feature {
+      background: rgba($type-feature, 0.2);
+      color: $type-feature;
+    }
+  }
+
+  &__title {
+    font-size: 14px;
+    margin-bottom: 4px;
+  }
+
+  &__desc {
+    color: $text-muted;
+    font-size: 12px;
+    margin-bottom: 8px;
+  }
+
+  &__ai-note,
+  &__review-note {
+    font-size: 12px;
+    padding: 6px 8px;
+    border-radius: 4px;
+    margin-bottom: 6px;
+  }
+
+  &__ai-note {
+    background: rgba($status-in_attesa, 0.15);
+  }
+
+  &__review-note {
+    background: rgba($status-rifiutato, 0.12);
+  }
+
+  &__branch {
+    display: inline-block;
+    font-size: 11px;
+    background: $bg;
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: $text-muted;
+    margin-bottom: 6px;
+  }
+
+  &__note-input {
+    width: 100%;
+    margin-bottom: 8px;
+    padding: 6px 8px;
+    background: $bg;
+    border: 1px solid $border;
+    border-radius: 4px;
+    color: $text;
+  }
+
+  &__actions {
+    @include flex-row(6px);
+    flex-wrap: wrap;
+  }
+}
+
+// ---- Create form ----
+.create-form {
+  @include flex-row(8px);
+  flex-wrap: wrap;
+
+  &__field {
+    padding: 7px 10px;
+    background: $bg;
+    border: 1px solid $border;
+    border-radius: 6px;
+    color: $text;
+  }
+}
+
+// ---- Buttons ----
+.btn {
+  padding: 7px 12px;
+  border: 1px solid $border;
+  border-radius: 6px;
+  background: $surface-2;
+  color: $text;
+  cursor: pointer;
+  font-size: 13px;
+  transition: filter 0.15s ease;
+
+  &:hover {
+    filter: brightness(1.2);
+  }
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  &--sm {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+
+  &--primary {
+    background: $primary;
+    border-color: $primary;
+    color: #fff;
+  }
+
+  &--in_lavorazione {
+    border-color: $status-in_lavorazione;
+    color: $status-in_lavorazione;
+  }
+  &--in_attesa {
+    border-color: $status-in_attesa;
+    color: $status-in_attesa;
+  }
+  &--approvato {
+    border-color: $status-approvato;
+    color: $status-approvato;
+  }
+  &--concluso {
+    border-color: $status-concluso;
+    color: $status-concluso;
+  }
+  &--rifiutato {
+    border-color: $status-rifiutato;
+    color: $status-rifiutato;
+  }
+}

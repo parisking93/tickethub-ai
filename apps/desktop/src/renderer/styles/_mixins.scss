@@ -1,0 +1,13 @@
+@use 'variables' as *;
+
+@mixin card {
+  background: $surface;
+  border: 1px solid $border;
+  border-radius: $radius;
+}
+
+@mixin flex-row($gap-size: $gap) {
+  display: flex;
+  align-items: center;
+  gap: $gap-size;
+}

@@ -1,0 +1,4 @@
+-r base.txt
+
+# Server di produzione
+gunicorn==23.0.0

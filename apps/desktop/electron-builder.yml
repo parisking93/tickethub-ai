@@ -1,0 +1,16 @@
+appId: com.tickethubai.desktop
+productName: Ticket AI Manager
+directories:
+  output: release
+  buildResources: build
+files:
+  - out/**/*
+  - package.json
+win:
+  target:
+    - nsis
+  artifactName: ${productName}-Setup-${version}.${ext}
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  perMachine: false

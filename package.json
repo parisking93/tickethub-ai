@@ -1,0 +1,22 @@
+{
+  "name": "tickethub-ai",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Gestione automatizzata di ticket via AI (desktop Electron + backend FastAPI)",
+  "workspaces": [
+    "packages/*",
+    "apps/desktop"
+  ],
+  "scripts": {
+    "dev:desktop": "npm run dev -w @tickethub/desktop",
+    "build:desktop": "npm run build -w @tickethub/desktop",
+    "lint": "npm run lint --workspaces --if-present",
+    "format": "prettier --write \"**/*.{ts,tsx,js,scss,json,md}\""
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
