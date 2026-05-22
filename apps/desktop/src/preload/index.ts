@@ -1,12 +1,19 @@
 import { contextBridge } from 'electron';
 
 /**
- * API esposta in modo sicuro al renderer tramite contextBridge.
- * Per ora espone solo l'URL del backend; in futuro qui passeranno
- * eventuali invocazioni IPC verso il main process.
+ * Legge l'URL del backend passato dal main process come argomento del renderer
+ * (--backend-url=...). È il metodo affidabile in app impacchettata, dove le
+ * modifiche a process.env fatte dal main a runtime non arrivano al preload.
  */
+function readBackendUrl(): string {
+  const prefix = '--backend-url=';
+  const arg = process.argv.find((a) => a.startsWith(prefix));
+  if (arg) return arg.slice(prefix.length);
+  return process.env.BACKEND_URL ?? 'http://127.0.0.1:8000';
+}
+
 const api = {
-  backendUrl: process.env.BACKEND_URL ?? 'http://127.0.0.1:8000',
+  backendUrl: readBackendUrl(),
 };
 
 contextBridge.exposeInMainWorld('tam', api);

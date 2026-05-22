@@ -2,7 +2,7 @@ import { join } from 'node:path';
 import { app, BrowserWindow, shell } from 'electron';
 import { startBackend, stopBackend } from './backend';
 
-function createWindow(): void {
+function createWindow(backendUrl: string): void {
   const window = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -16,6 +16,8 @@ function createWindow(): void {
       sandbox: false,
       contextIsolation: true,
       nodeIntegration: false,
+      // Passa l'URL del backend (porta dinamica) al preload in modo affidabile.
+      additionalArguments: [`--backend-url=${backendUrl}`],
     },
   });
 
@@ -36,10 +38,10 @@ function createWindow(): void {
 
 app.whenReady().then(async () => {
   // Avvia il backend (impacchettato o, in sviluppo, via venv) e attende che risponda.
-  await startBackend();
-  createWindow();
+  const backendUrl = await startBackend();
+  createWindow(backendUrl);
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    if (BrowserWindow.getAllWindows().length === 0) createWindow(backendUrl);
   });
 });
 
