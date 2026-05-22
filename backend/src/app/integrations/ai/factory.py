@@ -10,6 +10,18 @@ from app.integrations.ai.ollama import OllamaClient
 from app.integrations.ai.openai_compatible import LMSTUDIO_BASE_URL, OpenAICompatibleClient
 
 
+def _openai_base(base_url: str | None) -> str:
+    """Normalizza il base URL OpenAI-compatible assicurando il suffisso /v1.
+
+    LM Studio espone gli endpoint sotto /v1 (es. /v1/models, /v1/chat/completions):
+    se l'utente inserisce solo http://host:1234 lo correggiamo automaticamente.
+    """
+    base = (base_url or LMSTUDIO_BASE_URL).rstrip("/")
+    if not base.endswith("/v1"):
+        base = f"{base}/v1"
+    return base
+
+
 def build_client(
     provider: str,
     model: str,
@@ -23,14 +35,14 @@ def build_client(
         return OllamaClient(model=model, base_url=base_url, timeout=timeout)
     if provider == "lmstudio":
         return OpenAICompatibleClient(
-            model=model, base_url=base_url or LMSTUDIO_BASE_URL, api_key=api_key or "lm-studio",
+            model=model, base_url=_openai_base(base_url), api_key=api_key or "lm-studio",
             timeout=timeout,
         )
     if provider == "openai_compatible":
         if not base_url:
             raise AIError("openai_compatible richiede base_url.")
         return OpenAICompatibleClient(
-            model=model, base_url=base_url, api_key=api_key, timeout=timeout
+            model=model, base_url=_openai_base(base_url), api_key=api_key, timeout=timeout
         )
     raise AIError(f"Provider AI non supportato: {provider!r}")
 
@@ -47,7 +59,7 @@ def list_models(
                 data = c.get(url).json()
             return sorted(m["name"] for m in data.get("models", []))
         # lmstudio / openai_compatible
-        base = (base_url or LMSTUDIO_BASE_URL).rstrip("/")
+        base = _openai_base(base_url)
         headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
         with httpx.Client(timeout=10) as c:
             data = c.get(f"{base}/models", headers=headers).json()
