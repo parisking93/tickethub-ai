@@ -10,7 +10,7 @@ import base64
 
 import httpx
 
-from app.integrations.ai.base import AIError
+from app.integrations.ai.base import AIError, clean_ai_output
 
 LMSTUDIO_BASE_URL = "http://localhost:1234/v1"
 
@@ -67,6 +67,7 @@ class OpenAICompatibleClient:
             text = data["choices"][0]["message"]["content"]
         except (KeyError, IndexError, TypeError) as exc:
             raise AIError(f"Risposta AI in formato inatteso: {data}") from exc
+        text = clean_ai_output(text or "")
         if not text:
             raise AIError("Il provider AI ha restituito una risposta vuota.")
-        return text.strip()
+        return text

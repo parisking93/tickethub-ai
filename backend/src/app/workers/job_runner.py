@@ -21,15 +21,19 @@ from sqlalchemy.orm import Session
 
 from app.core.clock import utcnow
 from app.core.config import Settings, get_settings
-from app.integrations.ai.base import AIClient
+from app.repositories.ai_profile_repository import AIProfileRepository
 from app.repositories.email_account_repository import EmailAccountRepository
 from app.repositories.project_repository import ProjectRepository
 from app.repositories.ticket_repository import TicketRepository
 from app.services.ticket_service import TicketService
+from app.workers.ai_clients import ResolveClient, build_resolver
 from app.workers.ai_worker import AIWorker, WorkerResult
 
 # (ticket_id, azione)
 _Item = tuple[int, str]
+
+# session -> (operazione -> client). Iniettabile nei test.
+ResolverForSession = Callable[[Session], ResolveClient]
 
 
 @dataclass
@@ -44,12 +48,17 @@ class JobRunner:
     def __init__(
         self,
         session_factory: Callable[[], Session],
-        ai_client: AIClient,
         settings: Settings | None = None,
+        resolver_for_session: ResolverForSession | None = None,
     ) -> None:
         self._session_factory = session_factory
-        self._ai = ai_client
         self._settings = settings or get_settings()
+        self._resolver_for_session = resolver_for_session or self._default_resolver
+
+    @staticmethod
+    def _default_resolver(session: Session) -> ResolveClient:
+        profile = AIProfileRepository(session).get_active()
+        return build_resolver(profile)
 
     def run_once(self) -> JobReport:
         items = self._collect()
@@ -92,7 +101,7 @@ class JobRunner:
             tickets = TicketService(TicketRepository(session))
             worker = AIWorker(
                 tickets,
-                self._ai,
+                self._resolver_for_session(session),
                 EmailAccountRepository(session),
                 ProjectRepository(session),
             )

@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.v1 import email, odoo, projects, tickets, worker
+from app.api.v1 import ai, email, odoo, projects, tickets, worker
 from app.core.config import get_settings
 from app.db.base import Base
 from app.db.schema import sync_schema
@@ -20,16 +20,13 @@ logger = logging.getLogger("tickethub.worker")
 
 async def _worker_loop() -> None:
     """Scheduler automatico del job (attivo solo se WORKER_AUTORUN=true)."""
-    from app.integrations.ai.base import AIError
-    from app.integrations.ai.factory import build_ai_client
     from app.workers.job_runner import JobRunner
 
     # Breve attesa iniziale per non competere con l'avvio, poi un primo giro subito.
     await asyncio.sleep(3)
     while True:
         try:
-            ai_client = build_ai_client()
-            report = await asyncio.to_thread(JobRunner(SessionLocal, ai_client).run_once)
+            report = await asyncio.to_thread(JobRunner(SessionLocal).run_once)
             if report.processed or report.finalized or report.errors:
                 logger.info(
                     "Job: %s lavorati, %s finalizzati, %s errori",
@@ -37,8 +34,6 @@ async def _worker_loop() -> None:
                     report.finalized,
                     len(report.errors),
                 )
-        except AIError as exc:
-            logger.warning("Job saltato: %s", exc)
         except Exception:  # noqa: BLE001 — il loop non deve mai morire
             logger.exception("Errore inatteso nel job worker")
         await asyncio.sleep(settings.worker_interval_seconds)
@@ -88,6 +83,7 @@ def create_app() -> FastAPI:
     app.include_router(worker.router, prefix="/api/v1")
     app.include_router(projects.router, prefix="/api/v1")
     app.include_router(odoo.router, prefix="/api/v1")
+    app.include_router(ai.router, prefix="/api/v1")
     return app
 
 

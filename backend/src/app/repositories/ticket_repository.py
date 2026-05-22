@@ -169,3 +169,7 @@ class TicketRepository:
 
     def get_attachment(self, attachment_id: int) -> Attachment | None:
         return self._db.get(Attachment, attachment_id)
+
+    def delete_attachment(self, attachment: Attachment) -> None:
+        self._db.delete(attachment)
+        self._db.commit()

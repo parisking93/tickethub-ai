@@ -3,21 +3,30 @@ import type { Ticket } from '@tickethub/shared';
 import { useTickets } from '../features/tickets/hooks/useTickets';
 import { TicketBoard } from '../features/tickets/components/TicketBoard';
 import { TicketModal } from '../features/tickets/components/TicketModal';
-import { CreateTicketForm } from '../features/tickets/components/CreateTicketForm';
 import { emailApi } from '../features/email/api/emailApi';
 import { EmailAccountsPanel } from '../features/email/components/EmailAccountsPanel';
 import { ProjectsPanel } from '../features/projects/components/ProjectsPanel';
 import { OdooPanel } from '../features/odoo/components/OdooPanel';
+import { AIProfilesPanel } from '../features/ai/components/AIProfilesPanel';
 
 export function App(): JSX.Element {
   const { tickets, loading, error, reload, createTicket, changeStatus, updateTicket, getEvents } =
     useTickets();
-  const [selected, setSelected] = useState<Ticket | null>(null);
+  // modalState: undefined = chiuso, null = creazione, Ticket = dettaglio
+  const [modalState, setModalState] = useState<Ticket | null | undefined>(undefined);
   const [accountsOpen, setAccountsOpen] = useState(false);
   const [projectsOpen, setProjectsOpen] = useState(false);
   const [odooOpen, setOdooOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+
+  const modalOpen = modalState !== undefined;
+
+  const closeModal = (): void => {
+    setModalState(undefined);
+    void reload();
+  };
 
   const syncEmail = async (): Promise<void> => {
     setSyncing(true);
@@ -43,7 +52,9 @@ export function App(): JSX.Element {
     <div className="app">
       <header className="app__header">
         <h1 className="app__title">Ticket AI Manager</h1>
-        <CreateTicketForm onCreate={createTicket} />
+        <button className="btn btn--primary" type="button" onClick={() => setModalState(null)}>
+          ➕ Crea ticket
+        </button>
         <button className="btn" type="button" onClick={() => void syncEmail()} disabled={syncing}>
           {syncing ? 'Scarico…' : '📥 Scarica email'}
         </button>
@@ -55,6 +66,9 @@ export function App(): JSX.Element {
         </button>
         <button className="btn" type="button" onClick={() => setOdooOpen(true)}>
           🔗 Odoo
+        </button>
+        <button className="btn" type="button" onClick={() => setAiOpen(true)}>
+          ⚙ Area personale
         </button>
         <button className="btn" type="button" onClick={() => void reload()}>
           ↻ Aggiorna
@@ -76,22 +90,24 @@ export function App(): JSX.Element {
         {loading ? (
           <p className="app__loading">Caricamento ticket…</p>
         ) : (
-          <TicketBoard tickets={tickets} onOpen={setSelected} onMove={changeStatus} />
+          <TicketBoard tickets={tickets} onOpen={setModalState} onMove={changeStatus} />
         )}
       </main>
 
-      {selected && (
+      {modalOpen && (
         <TicketModal
-          ticket={selected}
-          onClose={() => setSelected(null)}
+          ticket={modalState ?? null}
+          onClose={closeModal}
           onChangeStatus={changeStatus}
           onUpdate={updateTicket}
+          onCreate={createTicket}
           getEvents={getEvents}
         />
       )}
       {accountsOpen && <EmailAccountsPanel onClose={() => setAccountsOpen(false)} />}
       {projectsOpen && <ProjectsPanel onClose={() => setProjectsOpen(false)} />}
       {odooOpen && <OdooPanel onClose={() => setOdooOpen(false)} onSynced={() => void reload()} />}
+      {aiOpen && <AIProfilesPanel onClose={() => setAiOpen(false)} />}
     </div>
   );
 }

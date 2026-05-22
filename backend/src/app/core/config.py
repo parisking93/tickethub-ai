@@ -56,7 +56,9 @@ class Settings(BaseSettings):
     # Modello per gli allegati immagine (vision). Usato solo se ci sono immagini.
     ai_vision_model: str = "qwen3-vl:30b"
     ai_api_key: str | None = None
-    ai_timeout: int = 120
+    # Timeout generoso: i modelli locali grandi (es. 20B) possono essere lenti al
+    # primo caricamento, specie con più app che competono per GPU/RAM.
+    ai_timeout: int = 300
 
     # OAuth2 Microsoft (Outlook). Redirect URI da registrare in Azure (Entra).
     ms_oauth_redirect_uri: str = "http://localhost:8000/api/v1/email/oauth/callback"

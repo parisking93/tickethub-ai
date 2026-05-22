@@ -13,7 +13,7 @@ interface UseTicketsResult {
   loading: boolean;
   error: string | null;
   reload: () => Promise<void>;
-  createTicket: (input: CreateTicketInput) => Promise<void>;
+  createTicket: (input: CreateTicketInput) => Promise<Ticket>;
   changeStatus: (id: number, status: TicketStatus, reviewNote?: string) => Promise<void>;
   updateTicket: (id: number, input: UpdateTicketInput) => Promise<void>;
   getEvents: (id: number) => Promise<TicketEvent[]>;
@@ -44,8 +44,9 @@ export function useTickets(): UseTicketsResult {
 
   const createTicket = useCallback(
     async (input: CreateTicketInput) => {
-      await ticketsApi.create(input);
+      const created = await ticketsApi.create(input);
       await reload();
+      return created;
     },
     [reload],
   );
