@@ -8,6 +8,7 @@ import type {
   EmailAccount,
   EmailSyncResult,
 } from './email';
+import type { AISettings, ModelList, UpdateAISettingsInput } from './ai';
 import type { CreateOdooConnectionInput, OdooConnection, OdooSyncResult } from './odoo';
 import type { CreateProjectInput, Project } from './project';
 import type {
@@ -70,6 +71,8 @@ export function createApiClient(baseUrl: BaseUrl) {
       },
       attachmentUrl: (id: number, attachmentId: number): string =>
         `${resolve()}/api/v1/tickets/${id}/attachments/${attachmentId}/download`,
+      deleteAttachment: (id: number, attachmentId: number): Promise<void> =>
+        request<void>(`/tickets/${id}/attachments/${attachmentId}`, { method: 'DELETE' }),
       create: (input: CreateTicketInput): Promise<Ticket> =>
         request<Ticket>('/tickets', { method: 'POST', body: body(input) }),
       update: (id: number, input: UpdateTicketInput): Promise<Ticket> =>
@@ -121,6 +124,19 @@ export function createApiClient(baseUrl: BaseUrl) {
           connectionId ? `/odoo/sync?connection_id=${connectionId}` : '/odoo/sync',
           { method: 'POST' },
         ),
+    },
+
+    ai: {
+      getSettings: (): Promise<AISettings> => request<AISettings>('/ai/settings'),
+      updateSettings: (input: UpdateAISettingsInput): Promise<AISettings> =>
+        request<AISettings>('/ai/settings', { method: 'PUT', body: body(input) }),
+      models: (provider?: string, baseUrl?: string): Promise<ModelList> => {
+        const params = new URLSearchParams();
+        if (provider) params.set('provider', provider);
+        if (baseUrl) params.set('base_url', baseUrl);
+        const qs = params.toString();
+        return request<ModelList>(`/ai/models${qs ? `?${qs}` : ''}`);
+      },
     },
   };
 }

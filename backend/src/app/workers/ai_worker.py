@@ -15,7 +15,7 @@ import contextlib
 from dataclasses import dataclass
 
 from app.core import storage
-from app.integrations.ai.base import AIClient, AIError
+from app.integrations.ai.base import AIError
 from app.integrations.email.sender import EmailSendError, send_reply
 from app.models.attachment import Attachment
 from app.models.ticket import Ticket, TicketStatus, TicketType
@@ -24,6 +24,7 @@ from app.repositories.email_account_repository import EmailAccountRepository
 from app.repositories.project_repository import ProjectRepository
 from app.services.ticket_service import TicketService
 from app.workers import prompts
+from app.workers.ai_clients import ResolveClient
 from app.workers.code_worker import CodeWorker
 
 _IMAGE_TYPES = ("image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif")
@@ -46,24 +47,25 @@ class AIWorker:
     def __init__(
         self,
         tickets: TicketService,
-        ai: AIClient,
+        resolve_client: ResolveClient,
         accounts: EmailAccountRepository,
         projects: ProjectRepository,
     ) -> None:
         self._tickets = tickets
-        self._ai = ai
+        self._resolve = resolve_client
         self._accounts = accounts
         self._projects = projects
 
-    def _code_worker(self) -> CodeWorker:
-        return CodeWorker(self._tickets, self._ai, self._projects)
+    def _code_worker(self, ticket: Ticket) -> CodeWorker:
+        # Modello scelto per il tipo di ticket (fix/feature).
+        return CodeWorker(self._tickets, self._resolve(ticket.type.value), self._projects)
 
     # --- Lavorazione (creato/rifiutato -> in_attesa) ---
 
     def process(self, ticket_id: int) -> WorkerResult:
         ticket = self._tickets.get(ticket_id)
         if ticket.type in _CODE_TYPES:
-            self._code_worker().process(ticket_id)
+            self._code_worker(ticket).process(ticket_id)
             return self._result(ticket_id, "process")
 
         # type=email
@@ -75,8 +77,12 @@ class AIWorker:
         prompt = prompts.build_email_prompt(ticket, conversation, attachments_text)
 
         try:
-            client, imgs = self._pick_client(images)
-            draft = client.complete(prompts.EMAIL_SYSTEM, prompt, images=imgs)
+            if images:
+                draft = self._resolve("vision").complete(
+                    prompts.EMAIL_SYSTEM, prompt, images=images
+                )
+            else:
+                draft = self._resolve("email").complete(prompts.EMAIL_SYSTEM, prompt)
         except AIError as exc:
             self._tickets.set_ai_fields(ticket_id, ai_note=f"Errore AI: {exc}")
             return self._result(ticket_id, "process")
@@ -120,21 +126,12 @@ class AIWorker:
             return storage.resolve_path(att.storage_path).read_bytes()
         return None
 
-    def _pick_client(self, images: list[bytes]) -> tuple[AIClient, list[bytes] | None]:
-        """Usa il modello vision se ci sono immagini, altrimenti il client di testo."""
-        if images:
-            with contextlib.suppress(Exception):
-                from app.integrations.ai.factory import build_vision_client
-
-                return build_vision_client(), images
-        return self._ai, None
-
     # --- Finalizzazione (approvato -> concluso) ---
 
     def finalize(self, ticket_id: int) -> WorkerResult:
         ticket = self._tickets.get(ticket_id)
         if ticket.type in _CODE_TYPES:
-            self._code_worker().finalize(ticket_id)
+            self._code_worker(ticket).finalize(ticket_id)
             return self._result(ticket_id, "finalize")
         return self._finalize_email(ticket)
 

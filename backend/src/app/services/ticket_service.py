@@ -5,6 +5,8 @@ in stile kanban: si può spostare il ticket avanti e indietro); ogni cambiamento
 viene registrato come evento per la cronologia.
 """
 
+import contextlib
+
 from app.core import storage
 from app.core.errors import TicketNotFoundError
 from app.models.attachment import Attachment, AttachmentSource
@@ -64,18 +66,26 @@ class TicketService:
         return self._repo.exists_by_external_ref(external_ref)
 
     def update(self, ticket_id: int, data: TicketUpdate) -> Ticket:
-        """Modifica i dettagli del ticket (titolo, descrizione, tipo, progetto)."""
+        """Modifica i dettagli del ticket; review_note viene registrata come nota utente."""
         ticket = self.get(ticket_id)
+        fields = data.model_dump(exclude_unset=True)
+        note = fields.pop("review_note", None)
+
         changed: list[str] = []
-        for field, value in data.model_dump(exclude_unset=True).items():
+        for field, value in fields.items():
             if getattr(ticket, field) != value:
                 setattr(ticket, field, value)
                 changed.append(field)
+        if note is not None:
+            ticket.review_note = note
         ticket = self._repo.save(ticket)
+
         if changed:
             self._repo.add_event(
                 ticket_id, TicketEventType.EDIT, f"Dettagli modificati: {', '.join(changed)}."
             )
+        if note:
+            self._repo.add_event(ticket_id, TicketEventType.USER_NOTE, note)
         return ticket
 
     def set_ai_fields(
@@ -171,6 +181,17 @@ class TicketService:
 
     def get_attachment(self, attachment_id: int) -> Attachment | None:
         return self._repo.get_attachment(attachment_id)
+
+    def delete_attachment(self, ticket_id: int, attachment_id: int) -> bool:
+        attachment = self._repo.get_attachment(attachment_id)
+        if attachment is None or attachment.ticket_id != ticket_id:
+            return False
+        with contextlib.suppress(OSError):
+            storage.resolve_path(attachment.storage_path).unlink(missing_ok=True)
+        filename = attachment.filename
+        self._repo.delete_attachment(attachment)
+        self._repo.add_event(ticket_id, TicketEventType.EDIT, f"Allegato rimosso: {filename}")
+        return True
 
     # --- Claim del job (delega al repository) ---
 

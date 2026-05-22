@@ -21,7 +21,10 @@ def _service(db) -> TicketService:
 
 
 def _worker(db, ai) -> AIWorker:
-    return AIWorker(_service(db), ai, EmailAccountRepository(db), ProjectRepository(db))
+    # resolver che ritorna sempre lo stesso client finto (ignora l'operazione)
+    return AIWorker(
+        _service(db), lambda _op: ai, EmailAccountRepository(db), ProjectRepository(db)
+    )
 
 
 def _seed_account(db) -> EmailAccount:

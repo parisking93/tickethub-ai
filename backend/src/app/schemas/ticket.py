@@ -33,6 +33,8 @@ class TicketUpdate(BaseModel):
     description: str | None = None
     type: TicketType | None = None
     project_id: int | None = None
+    # Nota/istruzione dell'utente per l'AI (peso massimo nel prompt).
+    review_note: str | None = None
 
 
 class TicketEventRead(BaseModel):

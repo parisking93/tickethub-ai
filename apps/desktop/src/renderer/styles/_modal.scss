@@ -143,8 +143,18 @@
   }
 
   &__meta {
+    @include flex-row(6px);
     color: $text-muted;
     font-size: 11px;
+  }
+
+  &__del {
+    background: none;
+    border: none;
+    color: $status-rifiutato;
+    cursor: pointer;
+    font-size: 12px;
+    padding: 0 2px;
   }
 }
 

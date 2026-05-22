@@ -17,8 +17,18 @@ CODE_SYSTEM = (
 )
 
 
+def _priority_note(review_note: str | None) -> str:
+    if not review_note:
+        return ""
+    return (
+        ">>> ISTRUZIONE PRIORITARIA DELL'UTENTE (ha la precedenza su tutto il resto, "
+        f"rispettala alla lettera): {review_note}"
+    )
+
+
 def build_email_prompt(ticket: Ticket, conversation: str, attachments_text: str = "") -> str:
     parts = [
+        _priority_note(ticket.review_note),
         "Ecco la conversazione email completa (dal più vecchio al più recente):",
         "---",
         conversation or (ticket.description or ticket.title),
@@ -28,13 +38,8 @@ def build_email_prompt(ticket: Ticket, conversation: str, attachments_text: str 
     if attachments_text:
         parts.append("\nContenuto degli allegati testuali:")
         parts.append(attachments_text)
-    if ticket.review_note:
-        parts.append(
-            "L'utente ha chiesto di rivedere la bozza precedente con queste indicazioni: "
-            f"{ticket.review_note}"
-        )
     parts.append("Scrivi la bozza di risposta all'ultimo messaggio ricevuto.")
-    return "\n".join(parts)
+    return "\n".join(p for p in parts if p)
 
 
 CODEGEN_SYSTEM = (
@@ -55,13 +60,12 @@ CODEGEN_SYSTEM = (
 
 def build_codegen_prompt(ticket: Ticket, file_tree: str, files_content: dict[str, str]) -> str:
     parts = [
+        _priority_note(ticket.review_note),
         f"Tipo richiesta: {ticket.type.value}",
         f"Titolo: {ticket.title}",
         "Descrizione:",
         ticket.description or "(nessuna descrizione)",
     ]
-    if ticket.review_note:
-        parts.append(f"Note di revisione dall'utente da tenere in conto: {ticket.review_note}")
 
     parts.append("\nStruttura del repository (file tracciati):")
     parts.append(file_tree)
@@ -72,7 +76,7 @@ def build_codegen_prompt(ticket: Ticket, file_tree: str, files_content: dict[str
             parts.append(f"\n### FILE: {path}\n```\n{content}\n```")
 
     parts.append("\nProduci i file da creare o modificare per soddisfare la richiesta.")
-    return "\n".join(parts)
+    return "\n".join(p for p in parts if p)
 
 
 def build_code_prompt(ticket: Ticket) -> str:

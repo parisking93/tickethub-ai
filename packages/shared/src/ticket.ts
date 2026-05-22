@@ -100,6 +100,8 @@ export interface UpdateTicketInput {
   description?: string | null;
   type?: TicketType;
   project_id?: number | null;
+  /** Nota/istruzione per l'AI (peso massimo nel prompt). */
+  review_note?: string | null;
 }
 
 /** Tipo di evento nella cronologia del ticket. */

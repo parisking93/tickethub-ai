@@ -30,10 +30,15 @@ def _statuses(session_factory) -> list[TicketStatus]:
         session.close()
 
 
+# Resolver finto: per qualsiasi operazione/sessione ritorna il FakeAIClient.
+def _fake_resolver(_session):
+    return lambda _op: FakeAIClient()
+
+
 def test_run_once_processes_new_tickets_sequential(session_factory):
     _seed_creato(session_factory, 3)
     runner = JobRunner(
-        session_factory, FakeAIClient(), Settings(worker_parallel=False)
+        session_factory, Settings(worker_parallel=False), resolver_for_session=_fake_resolver
     )
 
     report = runner.run_once()
@@ -47,7 +52,9 @@ def test_run_once_processes_new_tickets_sequential(session_factory):
 def test_run_once_parallel(session_factory):
     _seed_creato(session_factory, 4)
     runner = JobRunner(
-        session_factory, FakeAIClient(), Settings(worker_parallel=True, worker_concurrency=3)
+        session_factory,
+        Settings(worker_parallel=True, worker_concurrency=3),
+        resolver_for_session=_fake_resolver,
     )
 
     report = runner.run_once()
@@ -57,7 +64,7 @@ def test_run_once_parallel(session_factory):
 
 
 def test_run_once_empty(session_factory):
-    runner = JobRunner(session_factory, FakeAIClient(), Settings())
+    runner = JobRunner(session_factory, Settings(), resolver_for_session=_fake_resolver)
     report = runner.run_once()
     assert report.processed == 0
     assert report.finalized == 0

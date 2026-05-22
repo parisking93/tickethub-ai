@@ -117,6 +117,18 @@ def upload_attachment(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
 
+@router.delete(
+    "/{ticket_id}/attachments/{attachment_id}", status_code=status.HTTP_204_NO_CONTENT
+)
+def delete_attachment(
+    ticket_id: int,
+    attachment_id: int,
+    service: TicketService = Depends(get_ticket_service),
+) -> None:
+    if not service.delete_attachment(ticket_id, attachment_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Allegato non trovato")
+
+
 @router.get("/{ticket_id}/attachments/{attachment_id}/download")
 def download_attachment(
     ticket_id: int,
