@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "App desktop Electron per tickethub-ai",
+  "author": "Emmanuel Paris",
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
@@ -12,10 +13,8 @@
     "lint": "eslint . --ext .ts,.tsx",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
-  "dependencies": {
-    "@tickethub/shared": "*"
-  },
   "devDependencies": {
+    "@tickethub/shared": "*",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@typescript-eslint/eslint-plugin": "^8.6.0",

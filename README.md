@@ -50,3 +50,20 @@ API su http://127.0.0.1:8000 — docs su http://127.0.0.1:8000/docs
 npm install                   # dalla root (workspaces)
 npm run dev -w @tickethub/desktop
 ```
+In sviluppo l'app desktop **avvia da sola il backend** usando il `.venv` di `backend/`.
+
+## Eseguibile Windows (standalone)
+
+Genera un installer `.exe` che include **anche il backend Python** (via PyInstaller):
+non serve avere Python installato per usarlo.
+
+```powershell
+# prerequisiti una tantum: backend/.venv creato + npm install dalla root
+powershell -ExecutionPolicy Bypass -File scripts\build-installer.ps1
+```
+
+Output: `apps/desktop/release/Ticket AI Manager-Setup-<versione>.exe`.
+
+Avviando l'app installata, il backend parte automaticamente (porta locale libera,
+DB in `%APPDATA%`) e si arresta alla chiusura. L'AI usa Ollama su `localhost:11434`
+(modello configurabile via `AI_MODEL`, default `gpt-oss:20b`).

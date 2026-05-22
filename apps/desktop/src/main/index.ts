@@ -1,12 +1,6 @@
 import { join } from 'node:path';
 import { app, BrowserWindow, shell } from 'electron';
-
-/**
- * URL del backend FastAPI. Allo Step 1 punta al server di sviluppo locale.
- * In futuro il main process potrà avviare/gestire il processo Python.
- */
-const BACKEND_URL = process.env.BACKEND_URL ?? 'http://127.0.0.1:8000';
-process.env.BACKEND_URL = BACKEND_URL;
+import { startBackend, stopBackend } from './backend';
 
 function createWindow(): void {
   const window = new BrowserWindow({
@@ -40,7 +34,9 @@ function createWindow(): void {
   }
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  // Avvia il backend (impacchettato o, in sviluppo, via venv) e attende che risponda.
+  await startBackend();
   createWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -48,5 +44,8 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
+  stopBackend();
   if (process.platform !== 'darwin') app.quit();
 });
+
+app.on('before-quit', () => stopBackend());

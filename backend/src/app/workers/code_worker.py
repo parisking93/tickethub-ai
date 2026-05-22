@@ -11,6 +11,8 @@ del branch, ispezionabili dal diff salvato in `ticket.ai_draft`.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from app.integrations.ai.base import AIClient, AIError
 from app.integrations.git.branches import branch_name
 from app.integrations.git.repo import GitError, GitRepo
@@ -53,9 +55,12 @@ class CodeWorker:
                 return
             repo.checkout_or_create(branch, self._project(ticket).default_branch)
 
-            file_tree = "\n".join(repo.list_files())
+            tracked = repo.list_files()
+            file_tree = "\n".join(tracked)
+            files_content = self._read_files(repo.path, tracked)
             ai_output = self._ai.complete(
-                prompts.CODEGEN_SYSTEM, prompts.build_codegen_prompt(ticket, file_tree)
+                prompts.CODEGEN_SYSTEM,
+                prompts.build_codegen_prompt(ticket, file_tree, files_content),
             )
             edits = parse_file_edits(ai_output)
             if not edits:
@@ -121,6 +126,35 @@ class CodeWorker:
         self._tickets.change_status(ticket_id, TicketStatus.CONCLUSO)
 
     # --- helper ---
+
+    @staticmethod
+    def _read_files(
+        repo_path: Path,
+        paths: list[str],
+        max_files: int = 25,
+        max_per_file: int = 4000,
+        total_budget: int = 24000,
+    ) -> dict[str, str]:
+        """Legge il contenuto dei file tracciati (solo testo) entro un budget.
+
+        Serve a dare contesto all'AI così da preservare il codice esistente.
+        Salta file binari o troppo grandi.
+        """
+        contents: dict[str, str] = {}
+        used = 0
+        for rel in paths[:max_files]:
+            target = repo_path / rel
+            try:
+                text = target.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                continue  # binario o illeggibile
+            if len(text) > max_per_file:
+                text = text[:max_per_file] + "\n…(troncato)"
+            if used + len(text) > total_budget:
+                break
+            contents[rel] = text
+            used += len(text)
+        return contents
 
     def _project(self, ticket: Ticket):
         return self._projects.get(ticket.project_id) if ticket.project_id else None

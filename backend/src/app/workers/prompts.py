@@ -40,12 +40,16 @@ CODEGEN_SYSTEM = (
     "```\n"
     "<contenuto COMPLETO del file>\n"
     "```\n"
-    "Includi l'intero contenuto del file (non frammenti). Non aggiungere spiegazioni "
-    "fuori dai blocchi. Usa percorsi relativi alla radice del repository."
+    "Regole tassative:\n"
+    "- Per ogni file modificato includi il suo contenuto INTERO, non frammenti.\n"
+    "- PRESERVA tutto il codice esistente che non è interessato dalla modifica: "
+    "parti dal contenuto attuale del file e applica solo le modifiche necessarie.\n"
+    "- Includi solo i file che cambiano. Usa percorsi relativi alla radice del repo.\n"
+    "- Nessuna spiegazione fuori dai blocchi."
 )
 
 
-def build_codegen_prompt(ticket: Ticket, file_tree: str) -> str:
+def build_codegen_prompt(ticket: Ticket, file_tree: str, files_content: dict[str, str]) -> str:
     parts = [
         f"Tipo richiesta: {ticket.type.value}",
         f"Titolo: {ticket.title}",
@@ -54,8 +58,15 @@ def build_codegen_prompt(ticket: Ticket, file_tree: str) -> str:
     ]
     if ticket.review_note:
         parts.append(f"Note di revisione dall'utente da tenere in conto: {ticket.review_note}")
-    parts.append("\nStruttura attuale del repository (file principali):")
+
+    parts.append("\nStruttura del repository (file tracciati):")
     parts.append(file_tree)
+
+    if files_content:
+        parts.append("\nContenuto attuale dei file (preservalo dove non va modificato):")
+        for path, content in files_content.items():
+            parts.append(f"\n### FILE: {path}\n```\n{content}\n```")
+
     parts.append("\nProduci i file da creare o modificare per soddisfare la richiesta.")
     return "\n".join(parts)
 

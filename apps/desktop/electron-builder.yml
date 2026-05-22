@@ -1,11 +1,22 @@
 appId: com.tickethubai.desktop
 productName: Ticket AI Manager
+# electron è hoisted nel node_modules della root (monorepo): fissiamo la versione
+# così electron-builder non deve auto-rilevarla dal node_modules dell'app.
+electronVersion: 32.3.3
+# Monorepo: niente install/rebuild dei node_modules (tutto è già bundlato da Vite).
+# Evita che electron-builder esegua npm nel workspace (che prunerebbe app-builder-bin).
+npmRebuild: false
+buildDependenciesFromSource: false
 directories:
   output: release
   buildResources: build
 files:
   - out/**/*
   - package.json
+# Backend Python impacchettato con PyInstaller (cartella onedir) → resources/backend/
+extraResources:
+  - from: ../../backend/dist/pyinstaller/tickethub-backend
+    to: backend
 win:
   target:
     - nsis

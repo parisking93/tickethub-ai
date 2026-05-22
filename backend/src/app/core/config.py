@@ -5,16 +5,23 @@ file backend/.env (vedi config/*.env.example) oppure dall'ambiente di sistema.
 """
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 Environment = Literal["dev", "staging", "prod"]
 
+# Path assoluto di backend/.env (config.py = backend/src/app/core/config.py).
+# Così le impostazioni si caricano da qualsiasi cartella di avvio. Le variabili
+# d'ambiente hanno comunque precedenza (usate dall'app desktop impacchettata).
+_BACKEND_DIR = Path(__file__).resolve().parents[3]
+_ENV_FILE = _BACKEND_DIR / ".env"
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(_ENV_FILE),
         env_file_encoding="utf-8",
         extra="ignore",
     )

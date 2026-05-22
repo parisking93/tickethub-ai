@@ -14,6 +14,11 @@ release/
 apps/desktop/dist/
 apps/desktop/out/
 
+# --- Packaging backend (PyInstaller) ---
+backend/build/
+backend/dist/
+backend/packaging/*.spec
+
 # --- Python ---
 __pycache__/
 *.py[cod]
