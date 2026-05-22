@@ -36,6 +36,11 @@ class Settings(BaseSettings):
     worker_parallel: bool = False
     worker_concurrency: int = 2
 
+    # OAuth2 Microsoft (Outlook). Redirect URI da registrare in Azure (Entra).
+    ms_oauth_redirect_uri: str = "http://localhost:8000/api/v1/email/oauth/callback"
+    # client_id di default (può essere sovrascritto per singolo account).
+    ms_oauth_client_id: str | None = None
+
     @property
     def is_prod(self) -> bool:
         return self.app_env == "prod"

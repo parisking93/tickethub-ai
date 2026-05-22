@@ -49,6 +49,10 @@ class TicketService:
     def list(self, status: TicketStatus | None = None) -> list[Ticket]:
         return self._repo.list(status)
 
+    def exists_external_ref(self, external_ref: str) -> bool:
+        """True se esiste già un ticket con quel riferimento esterno (dedup)."""
+        return self._repo.exists_by_external_ref(external_ref)
+
     def change_status(
         self,
         ticket_id: int,

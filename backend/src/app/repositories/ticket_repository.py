@@ -19,6 +19,10 @@ class TicketRepository:
     def get(self, ticket_id: int) -> Ticket | None:
         return self._db.get(Ticket, ticket_id)
 
+    def exists_by_external_ref(self, external_ref: str) -> bool:
+        stmt = select(Ticket.id).where(Ticket.external_ref == external_ref).limit(1)
+        return self._db.scalars(stmt).first() is not None
+
     def list(self, status: TicketStatus | None = None) -> list[Ticket]:
         stmt = select(Ticket).order_by(Ticket.created_at.desc())
         if status is not None:

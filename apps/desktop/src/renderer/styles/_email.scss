@@ -1,0 +1,126 @@
+@use 'variables' as *;
+@use 'mixins' as *;
+
+// ---- Drawer (pannello account email) ----
+.drawer {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+
+  &__backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+  }
+
+  &__panel {
+    position: absolute;
+    top: 0;
+    right: 0;
+    height: 100%;
+    width: min(560px, 92vw);
+    background: $surface;
+    border-left: 1px solid $border;
+    padding: 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: $gap;
+  }
+
+  &__header {
+    @include flex-row;
+    justify-content: space-between;
+  }
+
+  &__error {
+    color: $status-rifiutato;
+    font-size: 13px;
+  }
+
+  &__muted {
+    color: $text-muted;
+    font-size: 13px;
+  }
+}
+
+// ---- Form aggiunta account ----
+.email-form {
+  @include card;
+  background: $surface-2;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  &__row {
+    @include flex-row(8px);
+    flex-wrap: wrap;
+  }
+
+  &__field {
+    flex: 1;
+    min-width: 140px;
+    padding: 7px 10px;
+    background: $bg;
+    border: 1px solid $border;
+    border-radius: 6px;
+    color: $text;
+  }
+
+  &__error {
+    color: $status-rifiutato;
+    font-size: 12px;
+  }
+}
+
+// ---- Lista account ----
+.account-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  &__item {
+    @include card;
+    @include flex-row;
+    justify-content: space-between;
+    padding: 10px 12px;
+  }
+
+  &__info {
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__email {
+    font-weight: 600;
+  }
+
+  &__meta {
+    color: $text-muted;
+    font-size: 12px;
+  }
+
+  &__actions {
+    @include flex-row(6px);
+  }
+}
+
+// ---- Badge stato ----
+.badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  text-transform: uppercase;
+
+  &--ok {
+    background: rgba($status-approvato, 0.2);
+    color: $status-approvato;
+  }
+
+  &--warn {
+    background: rgba($status-in_lavorazione, 0.2);
+    color: $status-in_lavorazione;
+  }
+}

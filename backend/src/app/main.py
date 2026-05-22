@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.v1 import tickets
+from app.api.v1 import email, tickets
 from app.core.config import get_settings
 from app.db.base import Base
 from app.db.session import engine
@@ -41,6 +41,7 @@ def create_app() -> FastAPI:
         return {"status": "ok", "env": settings.app_env}
 
     app.include_router(tickets.router, prefix="/api/v1")
+    app.include_router(email.router, prefix="/api/v1")
     return app
 
 

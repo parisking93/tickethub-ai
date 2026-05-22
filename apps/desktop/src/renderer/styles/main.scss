@@ -1,5 +1,6 @@
 @use 'variables' as *;
 @use 'mixins' as *;
+@use 'email';
 
 * {
   box-sizing: border-box;
@@ -37,6 +38,14 @@ body {
     background: rgba($status-rifiutato, 0.15);
     color: $status-rifiutato;
     border-bottom: 1px solid $border;
+  }
+
+  &__notice {
+    padding: 10px 20px;
+    background: rgba($primary, 0.15);
+    color: $text;
+    border-bottom: 1px solid $border;
+    cursor: pointer;
   }
 
   &__main {
