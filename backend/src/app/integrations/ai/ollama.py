@@ -6,7 +6,7 @@ import base64
 
 import httpx
 
-from app.integrations.ai.base import AIError
+from app.integrations.ai.base import AIError, clean_ai_output
 
 DEFAULT_BASE_URL = "http://localhost:11434"
 
@@ -37,7 +37,7 @@ class OllamaClient:
         if resp.status_code != 200:
             raise AIError(f"Ollama ha risposto {resp.status_code}: {resp.text}")
         data = resp.json()
-        text = data.get("response", "")
+        text = clean_ai_output(data.get("response", ""))
         if not text:
             raise AIError("Ollama ha restituito una risposta vuota.")
-        return text.strip()
+        return text
